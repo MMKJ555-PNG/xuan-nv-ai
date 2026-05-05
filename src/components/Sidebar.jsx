@@ -193,3 +193,5 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
         </div>
       </>)}
     </>
+  );
+}
