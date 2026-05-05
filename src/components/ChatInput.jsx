@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, ChevronDown, Sparkles, Zap, Plus, Trash2, ImagePlus, X } from "lucide-react";
 
-export default function ChatInput({ onSend, models, activeModel, onActiveModelChange, onModelAdd, onModelDelete }) {
+export default function ChatInput({ onSend, models, activeModel, onActiveModelChange, onModelAdd, onModelDelete, variant = "compact" }) {
   const [input, setInput] = useState("");
   const [modelOpen, setModelOpen] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
@@ -65,10 +65,12 @@ export default function ChatInput({ onSend, models, activeModel, onActiveModelCh
   const activeModelObj = models.find((m) => m.id === activeModel);
   const hasContent = input.trim().length > 0 || images.length > 0;
 
+  const isHero = variant === "hero";
+
   return (
     <>
-      <div className="px-4 pb-5 max-w-3xl mx-auto w-full">
-        <div className="rounded-2xl dark:bg-zinc-900/70 bg-white/95 border-[var(--surface-glass-border)] border shadow-[var(--input-shadow)] backdrop-blur-xl">
+      <div className={`${isHero ? "w-full max-w-2xl mx-auto" : "px-4 pb-5 max-w-3xl mx-auto w-full"}`}>
+        <div className={`${isHero ? "rounded-3xl shadow-xl shadow-violet-500/10" : "rounded-2xl shadow-[var(--input-shadow)]"} dark:bg-zinc-900/70 bg-white/95 border-[var(--surface-glass-border)] border backdrop-blur-xl`}>
           {/* Image previews */}
           {images.length > 0 && (
             <div className="flex gap-2 px-4 pt-3 flex-wrap">
@@ -87,19 +89,19 @@ export default function ChatInput({ onSend, models, activeModel, onActiveModelCh
             <textarea ref={textareaRef} value={input}
               onChange={(e) => { setInput(e.target.value); adjustHeight(); }}
               onKeyDown={handleKeyDown}
-              placeholder="输入消息，Enter 发送，Shift+Enter 换行..."
-              rows={1}
-              className="w-full bg-transparent text-sm dark:text-white text-zinc-900 dark:placeholder-zinc-500/70 placeholder-zinc-500/70 outline-none resize-none px-4 pt-4 pb-2 min-h-[52px] leading-relaxed block"
+              placeholder={isHero ? "输入消息，Enter 发送，Shift+Enter 换行" : "输入消息，Enter 发送，Shift+Enter 换行..."}
+              rows={isHero ? 1 : 1}
+              className={`w-full bg-transparent dark:text-white text-zinc-900 dark:placeholder-zinc-500/70 placeholder-zinc-500/70 outline-none resize-none px-4 pt-4 pb-2 min-h-[52px] leading-relaxed block ${isHero ? "text-base min-h-[64px] px-5 pt-5 pb-3" : "text-sm"}`}
             />
           </div>
-          <div className="flex items-center justify-between px-3 pb-3 gap-2">
+          <div className={`flex items-center justify-between gap-2 ${isHero ? "px-4 pb-4" : "px-3 pb-3"}`}>
             <div className="relative" ref={containerRef}>
               <button onClick={() => setModelOpen(!modelOpen)}
-                className="flex items-center gap-1.5 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border rounded-lg pl-3 pr-2 py-1.5 text-xs dark:text-zinc-300 text-zinc-700 transition-all duration-200 active:scale-95 max-w-[160px]"
+                className={`flex items-center gap-1.5 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border rounded-lg text-xs dark:text-zinc-300 text-zinc-700 transition-all duration-200 active:scale-95 max-w-[160px] ${isHero ? "pl-4 pr-3 py-2 text-sm" : "pl-3 pr-2 py-1.5"}`}
               >
-                <Sparkles size={12} className="text-violet-400 shrink-0" />
+                <Sparkles size={isHero ? 14 : 12} className="text-violet-400 shrink-0" />
                 <span className="font-medium truncate">{activeModelObj ? activeModelObj.name : "选择模型"}</span>
-                <ChevronDown size={11} className="dark:text-zinc-500 text-zinc-400 shrink-0 transition-transform duration-200 ml-0.5" style={{ transform: modelOpen ? "rotate(180deg)" : "" }} />
+                <ChevronDown size={isHero ? 13 : 11} className="dark:text-zinc-500 text-zinc-400 shrink-0 transition-transform duration-200 ml-0.5" style={{ transform: modelOpen ? "rotate(180deg)" : "" }} />
               </button>
               {modelOpen && (
                 <div className="absolute bottom-full left-0 mb-2 w-64 dark:bg-zinc-800/95 bg-white/95 backdrop-blur-xl rounded-xl border-[var(--border-default)] border shadow-2xl overflow-hidden z-50">
@@ -133,22 +135,24 @@ export default function ChatInput({ onSend, models, activeModel, onActiveModelCh
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
               <button
                 onClick={() => fileInputRef.current?.click()}
                 title="上传参考图片"
-                className="size-9 rounded-xl flex items-center justify-center transition-all duration-200 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border active:scale-95"
-              ><ImagePlus size={16} className="dark:text-zinc-400 text-zinc-500" /></button>
+                className={`rounded-xl flex items-center justify-center transition-all duration-200 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border active:scale-95 ${isHero ? "size-10" : "size-9"}`}
+              ><ImagePlus size={isHero ? 18 : 16} className="dark:text-zinc-400 text-zinc-500" /></button>
               <button onClick={handleSend} disabled={!hasContent || !activeModel}
-                className={`size-9 rounded-xl flex items-center justify-center transition-all duration-200 ${hasContent && activeModel ? "bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-600/25 animate-pulse-glow" : "dark:bg-white/[0.06] bg-zinc-100 cursor-not-allowed"}`}
-              >{hasContent && activeModel ? <Zap size={16} className="text-white" /> : <Send size={15} className="dark:text-zinc-500 text-zinc-400" />}</button>
+                className={`rounded-xl flex items-center justify-center transition-all duration-200 ${isHero ? "size-10" : "size-9"} ${hasContent && activeModel ? "bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-600/25 animate-pulse-glow" : "dark:bg-white/[0.06] bg-zinc-100 cursor-not-allowed"}`}
+              >{hasContent && activeModel ? <Zap size={isHero ? 18 : 16} className="text-white" /> : <Send size={isHero ? 17 : 15} className="dark:text-zinc-500 text-zinc-400" />}</button>
             </div>
           </div>
         </div>
-        <p className="text-center text-[10px] dark:text-zinc-600/80 text-zinc-500/80 mt-3 select-none flex items-center justify-center gap-1">
-          <span className="inline-block size-1 rounded-full dark:bg-zinc-700 bg-zinc-300" />内容由 AI 生成，仅供参考<span className="inline-block size-1 rounded-full dark:bg-zinc-700 bg-zinc-300" />
-        </p>
+        {!isHero && (
+          <p className="text-center text-[10px] dark:text-zinc-600/80 text-zinc-500/80 mt-3 select-none flex items-center justify-center gap-1">
+            <span className="inline-block size-1 rounded-full dark:bg-zinc-700 bg-zinc-300" />内容由 AI 生成，仅供参考<span className="inline-block size-1 rounded-full dark:bg-zinc-700 bg-zinc-300" />
+          </p>
+        )}
       </div>
 
       {/* Model Manager Modal */}
