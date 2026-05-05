@@ -132,29 +132,35 @@ export default function ChatArea({ chat, mode, apiUrl, apiKey, activeModel, mode
               <h3 className="text-lg font-semibold dark:text-zinc-200 text-zinc-800 mb-2">
                 {noConfig ? "请先配置 API" : noModel ? "请先添加模型" : mode === "image" ? "AI 图像生成" : "开始对话"}
               </h3>
-              <p className="text-sm dark:text-zinc-500 text-zinc-500 mb-6">
+              <p className="text-sm dark:text-zinc-500 text-zinc-500">
                 {noConfig ? "点击左下角设置按钮，配置 API 地址和密钥" : noModel ? "点击输入框左侧模型选择器，添加模型" : mode === "image" ? "输入描述文字，AI 将为你生成图像" : "输入消息开始与 AI 对话"}
               </p>
-              <ChatInput onSend={handleSend} models={models} activeModel={activeModel} onActiveModelChange={onActiveModelChange} onModelAdd={onModelAdd} onModelDelete={onModelDelete} variant="hero" />
             </div>
           </div>
         ) : (
-          <>
-            <div className="max-w-3xl mx-auto w-full px-4 py-6">
-              {error && <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-4 text-sm text-red-400"><AlertTriangle size={16} />{error}</div>}
-              <div className="space-y-10">
-                {(chat?.messages || []).map((msg, i) => (
-                  <div key={msg.id} className="animate-message-in" style={{ animationDelay: `${Math.min(i, 5) * 0.05}s` }}>
-                    <MessageBubble message={msg} isStreaming={mode === "image" && streaming && msg.role === "assistant" && !msg.content} />
-                  </div>
-                ))}
-              </div>
-              <div ref={bottomRef} />
+          <div className="max-w-3xl mx-auto w-full px-4 py-6">
+            {error && <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 mb-4 text-sm text-red-400"><AlertTriangle size={16} />{error}</div>}
+            <div className="space-y-10">
+              {(chat?.messages || []).map((msg, i) => (
+                <div key={msg.id} className="animate-message-in" style={{ animationDelay: `${Math.min(i, 5) * 0.05}s` }}>
+                  <MessageBubble message={msg} isStreaming={mode === "image" && streaming && msg.role === "assistant" && !msg.content} />
+                </div>
+              ))}
             </div>
-            <ChatInput onSend={handleSend} models={models} activeModel={activeModel} onActiveModelChange={onActiveModelChange} onModelAdd={onModelAdd} onModelDelete={onModelDelete} />
-          </>
+            <div ref={bottomRef} />
+          </div>
         )}
       </div>
+
+      <ChatInput
+        onSend={handleSend}
+        models={models}
+        activeModel={activeModel}
+        onActiveModelChange={onActiveModelChange}
+        onModelAdd={onModelAdd}
+        onModelDelete={onModelDelete}
+        variant={(!chat || chat.messages.length === 0) && !streaming ? "hero" : "compact"}
+      />
     </div>
   );
 }
