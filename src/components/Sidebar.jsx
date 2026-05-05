@@ -18,6 +18,7 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
   const [keyInput, setKeyInput] = useState(apiKey);
   const fileInputRef = useRef(null);
   const [importMsg, setImportMsg] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const handleExport = () => {
     const data = {};
@@ -115,7 +116,7 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
                     <button onClick={() => onChatSelect(chat.id)}
                       className={`flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm transition-all duration-150 text-left ${isActive ? "dark:bg-white/[0.06] bg-zinc-100 dark:text-zinc-200 text-zinc-700 border-[var(--border-subtle)] border" : "dark:text-zinc-400 text-zinc-500 dark:hover:bg-white/[0.03] hover:bg-zinc-50 dark:hover:text-zinc-300 hover:text-zinc-600 border border-transparent"}`}
                     ><Clock size={14} className="dark:text-zinc-500 text-zinc-500 shrink-0" /><span className="truncate flex-1">{chat.title}</span></button>
-                    <button onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 size-6 rounded-md flex items-center justify-center dark:text-zinc-400 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover/chat:opacity-100 transition-all"><Trash2 size={12} /></button>
+                    <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(chat); }} className="absolute right-1.5 top-1/2 -translate-y-1/2 size-6 rounded-md flex items-center justify-center dark:text-zinc-400 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover/chat:opacity-100 transition-all"><Trash2 size={12} /></button>
                   </div>
                 );
               }))}
@@ -170,6 +171,25 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
           </div>
         </div>
       </>)}
+
+      {/* Delete Confirm Modal */}
+      {deleteTarget && (<>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50" onClick={() => setDeleteTarget(null)} />
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] w-[380px] max-w-[90vw] dark:bg-zinc-900/95 bg-white/95 backdrop-blur-xl rounded-2xl border border-red-500/20 shadow-2xl shadow-red-500/5 animate-message-in overflow-hidden">
+          <div className="flex flex-col items-center p-6 pt-5 text-center">
+            <div className="size-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
+              <Trash2 size={22} className="text-red-400" />
+            </div>
+            <h3 className="text-base font-semibold dark:text-zinc-200 text-zinc-800 mb-1">确认删除</h3>
+            <p className="text-sm dark:text-zinc-400 text-zinc-500 mb-4">确定要删除这个对话吗？此操作无法撤销。</p>
+            <div className="dark:bg-white/[0.04] bg-zinc-100 rounded-lg px-4 py-2.5 w-full">
+              <p className="text-sm dark:text-zinc-300 text-zinc-700 truncate">{deleteTarget.title}</p>
+            </div>
+          </div>
+          <div className="dark:bg-white/[0.02] bg-zinc-50 border-t border-[var(--border-subtle)] flex justify-end gap-2 px-5 py-3">
+            <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 rounded-lg text-sm dark:text-zinc-400 text-zinc-500 dark:hover:text-zinc-200 hover:text-zinc-700 dark:hover:bg-white/[0.04] hover:bg-zinc-100 transition-colors">取消</button>
+            <button onClick={() => { onDeleteChat(deleteTarget.id); setDeleteTarget(null); }} className="px-5 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors">确认删除</button>
+          </div>
+        </div>
+      </>)}
     </>
-  );
-}
