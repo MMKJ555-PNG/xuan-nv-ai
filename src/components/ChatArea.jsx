@@ -31,6 +31,9 @@ export default function ChatArea({ chat, mode, apiUrl, apiKey, activeModel, mode
   const [ratio, setRatio] = useState(RATIOS[0]);
   const bottomRef = useRef(null);
   const streamingRef = useRef("");
+  const streamingStateRef = useRef(false);
+  const scrollContainerRef = useRef(null);
+  const userScrolledUpRef = useRef(false);
   const ratioContainerRef = useRef(null);
 
   useEffect(() => {
@@ -39,7 +42,25 @@ export default function ChatArea({ chat, mode, apiUrl, apiKey, activeModel, mode
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [chat?.messages, streaming]);
+  useEffect(() => { streamingStateRef.current = streaming; }, [streaming]);
+
+  // Reset scroll lock when a new streaming turn starts
+  useEffect(() => { if (streaming) userScrolledUpRef.current = false; }, [streaming]);
+
+  // Track user scroll position in the message container
+  const handleMessageScroll = () => {
+    const el = scrollContainerRef.current;
+    if (!el || !streamingStateRef.current) return;
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+    userScrolledUpRef.current = !atBottom;
+  };
+
+  // Auto-scroll: always when not streaming, only when at bottom during streaming
+  useEffect(() => {
+    if (!userScrolledUpRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chat?.messages, streaming]);
 
   const timeStr = () => new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
 
@@ -122,7 +143,7 @@ export default function ChatArea({ chat, mode, apiUrl, apiKey, activeModel, mode
         )}
       </header>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+      <div ref={scrollContainerRef} onScroll={handleMessageScroll} className="flex-1 overflow-y-auto custom-scrollbar relative">
         {(!chat || chat.messages.length === 0) && !streaming ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center select-none px-4 w-full max-w-2xl">
