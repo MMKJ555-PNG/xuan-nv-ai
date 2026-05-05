@@ -132,9 +132,10 @@ export default function ChatArea({ chat, mode, apiUrl, apiKey, activeModel, mode
               <h3 className="text-lg font-semibold dark:text-zinc-200 text-zinc-800 mb-2">
                 {noConfig ? "请先配置 API" : noModel ? "请先添加模型" : mode === "image" ? "AI 图像生成" : "开始对话"}
               </h3>
-              <p className="text-sm dark:text-zinc-500 text-zinc-500">
+              <p className="text-sm dark:text-zinc-500 text-zinc-500 mb-6">
                 {noConfig ? "点击左下角设置按钮，配置 API 地址和密钥" : noModel ? "点击输入框左侧模型选择器，添加模型" : mode === "image" ? "输入描述文字，AI 将为你生成图像" : "输入消息开始与 AI 对话"}
               </p>
+              <ChatInput onSend={handleSend} models={models} activeModel={activeModel} onActiveModelChange={onActiveModelChange} onModelAdd={onModelAdd} onModelDelete={onModelDelete} variant="hero" />
             </div>
           </div>
         ) : (
@@ -152,15 +153,17 @@ export default function ChatArea({ chat, mode, apiUrl, apiKey, activeModel, mode
         )}
       </div>
 
-      <ChatInput
-        onSend={handleSend}
-        models={models}
-        activeModel={activeModel}
-        onActiveModelChange={onActiveModelChange}
-        onModelAdd={onModelAdd}
-        onModelDelete={onModelDelete}
-        variant={(!chat || chat.messages.length === 0) && !streaming ? "hero" : "compact"}
-      />
+      {((chat && chat.messages.length > 0) || streaming) && (
+        <ChatInput
+          onSend={handleSend}
+          models={models}
+          activeModel={activeModel}
+          onActiveModelChange={onActiveModelChange}
+          onModelAdd={onModelAdd}
+          onModelDelete={onModelDelete}
+          variant="compact"
+        />
+      )}
     </div>
   );
 }
