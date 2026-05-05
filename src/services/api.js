@@ -1,5 +1,9 @@
+function normalizeUrl(apiUrl) {
+  return apiUrl.replace(/\/v1\/?$/, "");
+}
+
 export async function chatCompletion({ apiUrl, apiKey, model, messages }) {
-  const res = await fetch(`${apiUrl}/v1/chat/completions`, {
+  const res = await fetch(`${normalizeUrl(apiUrl)}/v1/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -15,7 +19,7 @@ export async function chatCompletion({ apiUrl, apiKey, model, messages }) {
 }
 
 export async function chatCompletionStream({ apiUrl, apiKey, model, messages, onChunk }) {
-  const res = await fetch(`${apiUrl}/v1/chat/completions`, {
+  const res = await fetch(`${normalizeUrl(apiUrl)}/v1/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
