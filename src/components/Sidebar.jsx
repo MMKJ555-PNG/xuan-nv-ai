@@ -79,18 +79,6 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
           </button>
         </div>
 
-        {/* Mode Toggle */}
-        <div className={`px-3 mb-3 ${collapsed ? "flex flex-col items-center gap-1" : ""}`}>
-          {collapsed ? (<>
-            <button onClick={() => onModeChange("text")} className={`size-10 rounded-xl flex items-center justify-center transition-all duration-200 ${mode === "text" ? "bg-violet-500/15 dark:text-violet-400 text-violet-600 border border-violet-500/30" : "dark:text-zinc-500 text-zinc-600 dark:hover:text-zinc-300 hover:text-zinc-800 border border-transparent"}`} title="文本生成"><MessageSquare size={18} /></button>
-            <button onClick={() => onModeChange("image")} className={`size-10 rounded-xl flex items-center justify-center transition-all duration-200 ${mode === "image" ? "bg-violet-500/15 dark:text-violet-400 text-violet-600 border border-violet-500/30" : "dark:text-zinc-500 text-zinc-600 dark:hover:text-zinc-300 hover:text-zinc-800 border border-transparent"}`} title="图像生成"><Image size={18} /></button>
-          </>) : (
-            <div className="flex dark:bg-white/[0.03] bg-zinc-100 rounded-xl p-0.5 border-[var(--border-subtle)] border">
-              <button onClick={() => onModeChange("text")} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${mode === "text" ? "bg-violet-500/15 text-violet-600 dark:text-violet-400" : "dark:text-zinc-500 text-zinc-600 dark:hover:text-zinc-300 hover:text-zinc-800"}`}><MessageSquare size={15} />文本</button>
-              <button onClick={() => onModeChange("image")} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${mode === "image" ? "bg-violet-500/15 text-violet-600 dark:text-violet-400" : "dark:text-zinc-500 text-zinc-600 dark:hover:text-zinc-300 hover:text-zinc-800"}`}><Image size={15} />图像</button>
-            </div>
-          )}
-        </div>
 
         {/* New Chat */}
         <div className={`px-3 mb-3 ${collapsed ? "flex justify-center" : ""}`}>
@@ -105,7 +93,13 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
         {/* Chat History */}
         {!collapsed && (
           <div className="flex-1 flex flex-col min-h-0">
-            <p className="text-xs font-semibold dark:text-zinc-500 text-zinc-500 uppercase tracking-wider px-5 mb-2">历史对话</p>
+            <div className="flex items-center justify-between px-5 mb-2">
+              <p className="text-xs font-semibold dark:text-zinc-500 text-zinc-500 uppercase tracking-wider">历史对话</p>
+              <div className="flex dark:bg-white/[0.05] bg-zinc-200/60 rounded-lg p-0.5 border-[var(--border-subtle)] border">
+                <button onClick={() => onModeChange("text")} className={`px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200 ${mode === "text" ? "bg-violet-500/15 text-violet-600 dark:text-violet-400" : "dark:text-zinc-500 text-zinc-500 dark:hover:text-zinc-300 hover:text-zinc-700"}`} title="文本模式"><MessageSquare size={11} className="inline mr-1" />文本</button>
+                <button onClick={() => onModeChange("image")} className={`px-2 py-1 rounded-md text-[10px] font-medium transition-all duration-200 ${mode === "image" ? "bg-violet-500/15 text-violet-600 dark:text-violet-400" : "dark:text-zinc-500 text-zinc-500 dark:hover:text-zinc-300 hover:text-zinc-700"}`} title="图像模式"><Image size={11} className="inline mr-1" />图像</button>
+              </div>
+            </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar px-3 space-y-0.5">
               {chats.length === 0 ? (
                 <p className="text-xs dark:text-zinc-600 text-zinc-500 text-center mt-8">暂无对话记录</p>

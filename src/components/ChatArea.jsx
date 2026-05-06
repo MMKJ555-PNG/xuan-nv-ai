@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { MessageCircle, AlertTriangle, Image, Sparkles } from "lucide-react";
+import { MessageCircle, AlertTriangle, Image, Sparkles, MessageSquare } from "lucide-react";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import { chatCompletionStream, chatCompletion } from "../services/api";
@@ -24,7 +24,7 @@ function toApiMessages(messages) {
   });
 }
 
-export default function ChatArea({ chat, mode, apiUrl, apiKey, activeModel, models, onMessagesUpdate, onModelAdd, onModelDelete, onActiveModelChange, onNewChat }) {
+export default function ChatArea({ chat, mode, onModeChange, apiUrl, apiKey, activeModel, models, onMessagesUpdate, onModelAdd, onModelDelete, onActiveModelChange, onNewChat }) {
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
   const [ratioMenuOpen, setRatioMenuOpen] = useState(false);
@@ -156,6 +156,14 @@ export default function ChatArea({ chat, mode, apiUrl, apiKey, activeModel, mode
               <p className="text-sm dark:text-zinc-500 text-zinc-500 mb-6">
                 {noConfig ? "点击左下角设置按钮，配置 API 地址和密钥" : noModel ? "点击输入框左侧模型选择器，添加模型" : mode === "image" ? "输入描述文字，AI 将为你生成图像" : "输入消息开始与 AI 对话"}
               </p>
+              {!noConfig && !noModel && (
+                <div className="flex justify-center mb-6">
+                  <div className="inline-flex dark:bg-white/[0.04] bg-zinc-100 rounded-xl p-0.5 border-[var(--border-subtle)] border">
+                    <button onClick={() => onModeChange("text")} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${mode === "text" ? "bg-violet-500/15 text-violet-600 dark:text-violet-400 shadow-sm" : "dark:text-zinc-500 text-zinc-500 dark:hover:text-zinc-300 hover:text-zinc-700"}`}><MessageSquare size={16} />文本模式</button>
+                    <button onClick={() => onModeChange("image")} className={`flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${mode === "image" ? "bg-violet-500/15 text-violet-600 dark:text-violet-400 shadow-sm" : "dark:text-zinc-500 text-zinc-500 dark:hover:text-zinc-300 hover:text-zinc-700"}`}><Image size={16} />图像模式</button>
+                  </div>
+                </div>
+              )}
               <ChatInput onSend={handleSend} models={models} activeModel={activeModel} onActiveModelChange={onActiveModelChange} onModelAdd={onModelAdd} onModelDelete={onModelDelete} variant="hero" />
             </div>
           </div>

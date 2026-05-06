@@ -187,6 +187,7 @@ function App() {
             }}
             onActiveModelChange={setActiveModel}
             onNewChat={handleNewChat}
+            onModeChange={setMode}
           />
         </main>
       </div>
