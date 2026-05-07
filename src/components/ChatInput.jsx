@@ -1,20 +1,24 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, ChevronDown, Sparkles, Zap, Plus, Trash2, ImagePlus, X } from "lucide-react";
+import { Send, ChevronDown, Sparkles, Zap, ImagePlus, X, Braces, Wrench, Brain, Video, Check } from "lucide-react";
 
-export default function ChatInput({ onSend, models, activeModel, onActiveModelChange, onModelAdd, onModelDelete, variant = "compact" }) {
+const FEATURES = [
+  { key: "structuredOutput", label: "结构化输出", icon: Braces, desc: "JSON Schema 约束输出" },
+  { key: "toolCalling", label: "工具调用", icon: Wrench, desc: "启用 Function Calling" },
+  { key: "thinking", label: "深度思考", icon: Brain, desc: "Claude extended thinking" },
+];
+
+export default function ChatInput({ onSend, activeModel, variant = "compact", features, onFeaturesChange }) {
   const [input, setInput] = useState("");
-  const [modelOpen, setModelOpen] = useState(false);
-  const [managerOpen, setManagerOpen] = useState(false);
-  const [newModelId, setNewModelId] = useState("");
-  const [newModelName, setNewModelName] = useState("");
+  const [featureOpen, setFeatureOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
   const [images, setImages] = useState([]);
   const textareaRef = useRef(null);
-  const containerRef = useRef(null);
+  const featureContainerRef = useRef(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     const handleClick = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) setModelOpen(false);
+      if (featureContainerRef.current && !featureContainerRef.current.contains(e.target)) setFeatureOpen(false);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -26,23 +30,16 @@ export default function ChatInput({ onSend, models, activeModel, onActiveModelCh
   };
 
   const handleSend = () => {
-    if (!input.trim() && images.length === 0) return;
-    onSend(input.trim(), images);
+    if (!input.trim() && images.length === 0 && !(features.video && videoUrl.trim())) return;
+    onSend(input.trim(), images, { videoUrl: features.video ? videoUrl.trim() : "", features });
     setInput("");
     setImages([]);
+    setVideoUrl("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   };
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
-  };
-
-  const handleAddModel = () => {
-    const trimmedId = newModelId.trim();
-    if (!trimmedId) return;
-    onModelAdd({ id: trimmedId, name: newModelName.trim() || trimmedId });
-    if (!activeModel) onActiveModelChange(trimmedId);
-    setNewModelId(""); setNewModelName(""); setManagerOpen(false);
   };
 
   const handleImageUpload = (e) => {
@@ -62,10 +59,10 @@ export default function ChatInput({ onSend, models, activeModel, onActiveModelCh
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const activeModelObj = models.find((m) => m.id === activeModel);
-  const hasContent = input.trim().length > 0 || images.length > 0;
-
+  const hasContent = input.trim().length > 0 || images.length > 0 || (features.video && videoUrl.trim().length > 0);
+  const activeFeatures = FEATURES.filter((f) => features[f.key]);
   const isHero = variant === "hero";
+  const isVideoMode = features.video;
 
   return (
     <>
@@ -89,59 +86,88 @@ export default function ChatInput({ onSend, models, activeModel, onActiveModelCh
             <textarea ref={textareaRef} value={input}
               onChange={(e) => { setInput(e.target.value); adjustHeight(); }}
               onKeyDown={handleKeyDown}
-              placeholder={isHero ? "输入消息，Enter 发送，Shift+Enter 换行" : "输入消息，Enter 发送，Shift+Enter 换行..."}
+              placeholder={isHero ? (isVideoMode ? "描述你想了解的视频内容，Enter 发送..." : "输入消息，Enter 发送，Shift+Enter 换行") : (isVideoMode ? "描述视频相关问题..." : "输入消息，Enter 发送，Shift+Enter 换行...")}
               rows={isHero ? 1 : 1}
               className={`w-full bg-transparent dark:text-white text-zinc-900 dark:placeholder-zinc-500/70 placeholder-zinc-500/70 outline-none resize-none px-4 pt-4 pb-2 min-h-[52px] leading-relaxed block ${isHero ? "text-base min-h-[64px] px-5 pt-5 pb-3" : "text-sm"}`}
             />
           </div>
+          {/* Video URL input */}
+          {isVideoMode && (
+            <div className={`px-4 pb-2 ${isHero ? "px-5" : ""}`}>
+              <div className="flex items-center gap-2">
+                <Video size={14} className="text-violet-400 shrink-0" />
+                <input
+                  type="url"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  placeholder="输入视频 URL（仅支持 Gemini 系列模型）..."
+                  className="flex-1 bg-transparent dark:text-white text-zinc-900 dark:placeholder-zinc-500/70 placeholder-zinc-500/70 outline-none text-xs"
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSend(); } }}
+                />
+              </div>
+            </div>
+          )}
           <div className={`flex items-center justify-between gap-2 ${isHero ? "px-4 pb-4" : "px-3 pb-3"}`}>
-            <div className="relative" ref={containerRef}>
-              <button onClick={() => setModelOpen(!modelOpen)}
-                className={`flex items-center gap-1.5 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border rounded-lg text-xs dark:text-zinc-300 text-zinc-700 transition-all duration-200 active:scale-95 max-w-[160px] ${isHero ? "pl-4 pr-3 py-2 text-sm" : "pl-3 pr-2 py-1.5"}`}
+            <div className="relative" ref={featureContainerRef}>
+              <button onClick={() => setFeatureOpen(!featureOpen)}
+                className={`flex items-center gap-1.5 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border rounded-lg text-xs dark:text-zinc-300 text-zinc-700 transition-all duration-200 active:scale-95 ${isHero ? "pl-4 pr-3 py-2 text-sm" : "pl-3 pr-2 py-1.5"}`}
               >
                 <Sparkles size={isHero ? 14 : 12} className="text-violet-400 shrink-0" />
-                <span className="font-medium truncate">{activeModelObj ? activeModelObj.name : "选择模型"}</span>
-                <ChevronDown size={isHero ? 13 : 11} className="dark:text-zinc-500 text-zinc-400 shrink-0 transition-transform duration-200 ml-0.5" style={{ transform: modelOpen ? "rotate(180deg)" : "" }} />
+                <span className="font-medium">{activeFeatures.length > 0 ? `${activeFeatures.length} 项功能` : "功能"}</span>
+                <ChevronDown size={isHero ? 13 : 11} className="dark:text-zinc-500 text-zinc-400 shrink-0 transition-transform duration-200 ml-0.5" style={{ transform: featureOpen ? "rotate(180deg)" : "" }} />
               </button>
-              {modelOpen && (
+              {featureOpen && (
                 <div className="absolute bottom-full left-0 mb-2 w-64 dark:bg-zinc-800/95 bg-white/95 backdrop-blur-xl rounded-xl border-[var(--border-default)] border shadow-2xl overflow-hidden z-50">
                   <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
-                    <span className="text-[10px] dark:text-zinc-500 text-zinc-400 uppercase tracking-wider font-medium">选择模型</span>
+                    <span className="text-[10px] dark:text-zinc-500 text-zinc-400 uppercase tracking-wider font-medium">功能特性</span>
                   </div>
-                  <div className="max-h-[220px] overflow-y-auto custom-scrollbar">
-                    {models.length === 0 ? (
-                      <div className="px-4 py-6 text-center">
-                        <Sparkles size={20} className="text-zinc-400 mx-auto mb-2" />
-                        <p className="text-xs dark:text-zinc-500 text-zinc-400">暂无自定义模型</p>
+                  <div>
+                    {/* Video mode toggle */}
+                    <button
+                      onClick={() => onFeaturesChange({ ...features, video: !features.video })}
+                      className={`w-full px-4 py-3 text-left transition-colors flex items-center gap-3 ${features.video ? "bg-violet-500/10 border-l-2 border-l-violet-400" : "dark:hover:bg-white/[0.04] hover:bg-zinc-100 border-l-2 border-l-transparent"}`}
+                    >
+                      <Video size={16} className={features.video ? "text-violet-400" : "dark:text-zinc-500 text-zinc-400"} />
+                      <div className="flex-1 min-w-0">
+                        <span className={`text-sm block truncate ${features.video ? "text-violet-400 font-medium" : "dark:text-zinc-200 text-zinc-700"}`}>视频分析</span>
+                        <span className="text-[10px] dark:text-zinc-500 text-zinc-400 block truncate">仅 Gemini 系列模型</span>
                       </div>
-                    ) : (models.map((m) => (
-                      <button key={m.id}
-                        onClick={() => { onActiveModelChange(m.id); setModelOpen(false); }}
-                        className={`w-full px-4 py-3 text-left transition-colors ${activeModel === m.id ? "bg-violet-500/10 border-l-2 border-l-violet-400" : "dark:hover:bg-white/[0.04] hover:bg-zinc-100 border-l-2 border-l-transparent"}`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={`text-sm font-medium truncate ${activeModel === m.id ? "text-violet-400" : "dark:text-zinc-200 text-zinc-700"}`}>{m.name}</span>
-                          {activeModel === m.id && <span className="size-1.5 rounded-full bg-violet-400 shrink-0" />}
-                        </div>
-                        <span className="text-[11px] dark:text-zinc-500 text-zinc-500 mt-0.5 block truncate">{m.id}</span>
-                      </button>
-                    )))}
-                  </div>
-                  <div className="border-t border-[var(--border-subtle)]">
-                    <button onClick={() => { setModelOpen(false); setManagerOpen(true); }}
-                      className="flex items-center gap-1.5 w-full px-4 py-2.5 text-xs dark:text-zinc-400 text-zinc-600 dark:hover:text-zinc-200 hover:text-zinc-800 dark:hover:bg-white/[0.04] hover:bg-zinc-100 transition-colors"
-                    ><Plus size={12} />管理模型</button>
+                      {features.video && <Check size={14} className="text-violet-400 shrink-0" />}
+                    </button>
+                    {/* Feature toggles */}
+                    {FEATURES.map((f) => {
+                      const Icon = f.icon;
+                      const active = features[f.key];
+                      return (
+                        <button
+                          key={f.key}
+                          onClick={() => onFeaturesChange({ ...features, [f.key]: !active })}
+                          className={`w-full px-4 py-3 text-left transition-colors flex items-center gap-3 ${active ? "bg-violet-500/10 border-l-2 border-l-violet-400" : "dark:hover:bg-white/[0.04] hover:bg-zinc-100 border-l-2 border-l-transparent"}`}
+                        >
+                          <Icon size={16} className={active ? "text-violet-400" : "dark:text-zinc-500 text-zinc-400"} />
+                          <div className="flex-1 min-w-0">
+                            <span className={`text-sm block truncate ${active ? "text-violet-400 font-medium" : "dark:text-zinc-200 text-zinc-700"}`}>{f.label}</span>
+                            <span className="text-[10px] dark:text-zinc-500 text-zinc-400 block truncate">{f.desc}</span>
+                          </div>
+                          {active && <Check size={14} className="text-violet-400 shrink-0" />}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
             </div>
             <div className="flex items-center gap-1.5">
-              <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                title="上传参考图片"
-                className={`rounded-xl flex items-center justify-center transition-all duration-200 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border active:scale-95 ${isHero ? "size-10" : "size-9"}`}
-              ><ImagePlus size={isHero ? 18 : 16} className="dark:text-zinc-400 text-zinc-500" /></button>
+              {!isVideoMode && (
+                <>
+                  <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    title="上传参考图片"
+                    className={`rounded-xl flex items-center justify-center transition-all duration-200 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border active:scale-95 ${isHero ? "size-10" : "size-9"}`}
+                  ><ImagePlus size={isHero ? 18 : 16} className="dark:text-zinc-400 text-zinc-500" /></button>
+                </>
+              )}
               <button onClick={handleSend} disabled={!hasContent || !activeModel}
                 className={`rounded-xl flex items-center justify-center transition-all duration-200 ${isHero ? "size-10" : "size-9"} ${hasContent && activeModel ? "bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-600/25 animate-pulse-glow" : "dark:bg-white/[0.06] bg-zinc-100 cursor-not-allowed"}`}
               >{hasContent && activeModel ? <Zap size={isHero ? 18 : 16} className="text-white" /> : <Send size={isHero ? 17 : 15} className="dark:text-zinc-500 text-zinc-400" />}</button>
@@ -155,43 +181,6 @@ export default function ChatInput({ onSend, models, activeModel, onActiveModelCh
         )}
       </div>
 
-      {/* Model Manager Modal */}
-      {managerOpen && (
-        <>
-          <div className="fixed inset-0 bg-black/60 dark:bg-black/60 bg-black/40 backdrop-blur-sm z-40" onClick={() => setManagerOpen(false)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[420px] max-w-[90vw] dark:bg-zinc-900/95 bg-white/95 backdrop-blur-xl rounded-2xl border-[var(--border-default)] border shadow-2xl animate-message-in overflow-hidden">
-            <div className="px-5 py-4 border-b border-[var(--border-subtle)]">
-              <span className="text-sm font-semibold dark:text-zinc-200 text-zinc-800">管理模型</span>
-            </div>
-            <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
-              {models.length === 0 ? (
-                <p className="text-xs dark:text-zinc-500 text-zinc-500 text-center py-8">暂无自定义模型</p>
-              ) : (models.map((m) => (
-                <div key={m.id} className="flex items-center gap-3 px-5 py-3 border-b border-[var(--border-subtle)] dark:hover:bg-white/[0.02] hover:bg-zinc-50">
-                  <div className="flex-1 min-w-0"><p className="text-sm dark:text-zinc-200 text-zinc-700 truncate">{m.name}</p><p className="text-[10px] dark:text-zinc-500 text-zinc-400 truncate">{m.id}</p></div>
-                  <button onClick={() => onModelDelete(m.id)} className="size-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"><Trash2 size={13} /></button>
-                </div>
-              )))}
-            </div>
-            <div className="p-5 space-y-3 dark:bg-white/[0.02] bg-zinc-50 border-t border-[var(--border-subtle)]">
-              <div><label className="text-[10px] dark:text-zinc-500 text-zinc-600 mb-1 block">模型 ID *</label>
-                <input type="text" value={newModelId} onChange={(e) => setNewModelId(e.target.value)} placeholder="gpt-4o"
-                  className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-500 outline-none focus:border-violet-500/40 transition-colors"
-                />
-              </div>
-              <div><label className="text-[10px] dark:text-zinc-500 text-zinc-600 mb-1 block">显示名称（可选）</label>
-                <input type="text" value={newModelName} onChange={(e) => setNewModelName(e.target.value)} placeholder="GPT-4o"
-                  className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-500 outline-none focus:border-violet-500/40 transition-colors"
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAddModel(); }}
-                />
-              </div>
-              <button onClick={handleAddModel} disabled={!newModelId.trim()}
-                className="w-full py-2.5 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 disabled:opacity-40 disabled:cursor-not-allowed text-white transition-colors"
-              >添加模型</button>
-            </div>
-          </div>
-        </>
-      )}
     </>
   );
 }

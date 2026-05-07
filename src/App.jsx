@@ -18,6 +18,7 @@ function App() {
   const [models, setModels] = useLocalStorage("xuannv_models", []);
   const [activeModel, setActiveModel] = useLocalStorage("xuannv_active_model", "");
   const [mode, setMode] = useLocalStorage("xuannv_mode", "text");
+  const [features, setFeatures] = useLocalStorage("xuannv_features", { video: false, structuredOutput: false, toolCalling: false, thinking: false });
   const [chats, setChats] = useLocalStorage("xuannv_chats", []);
   const [activeChat, setActiveChat] = useLocalStorage("xuannv_active_chat", null);
 
@@ -169,6 +170,8 @@ function App() {
           <ChatArea
             chat={currentChat}
             mode={mode}
+            features={features}
+            onFeaturesChange={setFeatures}
             apiUrl={apiUrl}
             apiKey={apiKey}
             models={models}

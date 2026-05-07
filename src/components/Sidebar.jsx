@@ -7,6 +7,7 @@ const STORAGE_KEYS = [
   "xuannv_models",
   "xuannv_active_model",
   "xuannv_mode",
+  "xuannv_features",
   "xuannv_chats",
   "xuannv_active_chat",
   "xuannv_theme",

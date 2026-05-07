@@ -2,14 +2,14 @@ function normalizeUrl(apiUrl) {
   return apiUrl.replace(/\/v1\/?$/, "");
 }
 
-export async function chatCompletion({ apiUrl, apiKey, model, messages }) {
+export async function chatCompletion({ apiUrl, apiKey, model, messages, ...extra }) {
   const res = await fetch(`${normalizeUrl(apiUrl)}/v1/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, messages }),
+    body: JSON.stringify({ model, messages, ...extra }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -18,14 +18,14 @@ export async function chatCompletion({ apiUrl, apiKey, model, messages }) {
   return res.json();
 }
 
-export async function chatCompletionStream({ apiUrl, apiKey, model, messages, onChunk }) {
+export async function chatCompletionStream({ apiUrl, apiKey, model, messages, onChunk, ...extra }) {
   const res = await fetch(`${normalizeUrl(apiUrl)}/v1/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, messages, stream: true }),
+    body: JSON.stringify({ model, messages, stream: true, ...extra }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
