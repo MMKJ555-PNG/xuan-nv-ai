@@ -10,11 +10,12 @@ const FEATURES = [
 export default function ChatInput({ onSend, activeModel, variant = "compact", features, onFeaturesChange }) {
   const [input, setInput] = useState("");
   const [featureOpen, setFeatureOpen] = useState(false);
-  const [videoUrl, setVideoUrl] = useState("");
+  const [videoFile, setVideoFile] = useState(null);
   const [images, setImages] = useState([]);
   const textareaRef = useRef(null);
   const featureContainerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const videoInputRef = useRef(null);
 
   useEffect(() => {
     const handleClick = (e) => {
@@ -30,11 +31,11 @@ export default function ChatInput({ onSend, activeModel, variant = "compact", fe
   };
 
   const handleSend = () => {
-    if (!input.trim() && images.length === 0 && !(features.video && videoUrl.trim())) return;
-    onSend(input.trim(), images, { videoUrl: features.video ? videoUrl.trim() : "", features });
+    if (!input.trim() && images.length === 0 && !(features.video && videoFile)) return;
+    onSend(input.trim(), images, { videoUrl: features.video && videoFile ? videoFile.dataUrl : "", features });
     setInput("");
     setImages([]);
-    setVideoUrl("");
+    setVideoFile(null);
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   };
 
@@ -59,7 +60,22 @@ export default function ChatInput({ onSend, activeModel, variant = "compact", fe
     setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const hasContent = input.trim().length > 0 || images.length > 0 || (features.video && videoUrl.trim().length > 0);
+  const handleVideoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file || !file.type.startsWith("video/")) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setVideoFile({ name: file.name, dataUrl: ev.target.result });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  const handleRemoveVideo = () => {
+    setVideoFile(null);
+  };
+
+  const hasContent = input.trim().length > 0 || images.length > 0 || (features.video && videoFile);
   const activeFeatures = FEATURES.filter((f) => features[f.key]);
   const isHero = variant === "hero";
   const isVideoMode = features.video;
@@ -86,25 +102,30 @@ export default function ChatInput({ onSend, activeModel, variant = "compact", fe
             <textarea ref={textareaRef} value={input}
               onChange={(e) => { setInput(e.target.value); adjustHeight(); }}
               onKeyDown={handleKeyDown}
-              placeholder={isHero ? (isVideoMode ? "描述你想了解的视频内容，Enter 发送..." : "输入消息，Enter 发送，Shift+Enter 换行") : (isVideoMode ? "描述视频相关问题..." : "输入消息，Enter 发送，Shift+Enter 换行...")}
+              placeholder={isHero ? (isVideoMode ? "上传视频文件，描述你想了解的内容，Enter 发送..." : "输入消息，Enter 发送，Shift+Enter 换行") : (isVideoMode ? "上传视频并描述问题..." : "输入消息，Enter 发送，Shift+Enter 换行...")}
               rows={isHero ? 1 : 1}
               className={`w-full bg-transparent dark:text-white text-zinc-900 dark:placeholder-zinc-500/70 placeholder-zinc-500/70 outline-none resize-none px-4 pt-4 pb-2 min-h-[52px] leading-relaxed block ${isHero ? "text-base min-h-[64px] px-5 pt-5 pb-3" : "text-sm"}`}
             />
           </div>
-          {/* Video URL input */}
+          {/* Video file upload */}
           {isVideoMode && (
             <div className={`px-4 pb-2 ${isHero ? "px-5" : ""}`}>
-              <div className="flex items-center gap-2">
-                <Video size={14} className="text-violet-400 shrink-0" />
-                <input
-                  type="url"
-                  value={videoUrl}
-                  onChange={(e) => setVideoUrl(e.target.value)}
-                  placeholder="输入视频 URL（仅支持 Gemini 系列模型）..."
-                  className="flex-1 bg-transparent dark:text-white text-zinc-900 dark:placeholder-zinc-500/70 placeholder-zinc-500/70 outline-none text-xs"
-                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSend(); } }}
-                />
-              </div>
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/*"
+                onChange={handleVideoUpload}
+                className="hidden"
+              />
+              {videoFile && (
+                <div className="flex items-center gap-2 bg-violet-500/10 rounded-lg px-3 py-2">
+                  <Video size={14} className="text-violet-400 shrink-0" />
+                  <span className="flex-1 text-xs dark:text-zinc-300 text-zinc-700 truncate">{videoFile.name}</span>
+                  <button onClick={handleRemoveVideo} className="size-5 rounded-full bg-black/30 flex items-center justify-center hover:bg-black/50 transition-colors">
+                    <X size={10} className="text-white" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
           <div className={`flex items-center justify-between gap-2 ${isHero ? "px-4 pb-4" : "px-3 pb-3"}`}>
@@ -158,7 +179,13 @@ export default function ChatInput({ onSend, activeModel, variant = "compact", fe
               )}
             </div>
             <div className="flex items-center gap-1.5">
-              {!isVideoMode && (
+              {isVideoMode ? (
+                <button
+                  onClick={() => videoInputRef.current?.click()}
+                  title="上传视频文件"
+                  className={`rounded-xl flex items-center justify-center transition-all duration-200 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border active:scale-95 ${isHero ? "size-10" : "size-9"}`}
+                ><Video size={isHero ? 18 : 16} className="dark:text-zinc-400 text-zinc-500" /></button>
+              ) : (
                 <>
                   <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" />
                   <button

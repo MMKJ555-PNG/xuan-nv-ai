@@ -259,7 +259,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
                 {noConfig ? "请先配置 API" : noModel ? "请先添加模型" : features.video ? "AI 视频分析" : mode === "image" ? "AI 图像生成" : "开始对话"}
               </h3>
               <p className="text-sm dark:text-zinc-500 text-zinc-500 mb-6">
-                {noConfig ? "点击左下角设置按钮，配置 API 地址和密钥" : noModel ? "点击顶部右侧模型选择器，添加模型" : features.video ? "输入视频 URL，AI 将为你分析视频内容（仅支持 Gemini）" : mode === "image" ? "输入描述文字，AI 将为你生成图像" : "输入消息开始与 AI 对话"}
+                {noConfig ? "点击左下角设置按钮，配置 API 地址和密钥" : noModel ? "点击顶部右侧模型选择器，添加模型" : features.video ? "上传视频文件，AI 将为你分析视频内容（仅支持 Gemini）" : mode === "image" ? "输入描述文字，AI 将为你生成图像" : "输入消息开始与 AI 对话"}
               </p>
               {!noConfig && !noModel && (
                 <div className="flex justify-center mb-6">

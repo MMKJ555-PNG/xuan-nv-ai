@@ -1,4 +1,4 @@
-import { Hexagon, CheckCheck, Copy, RefreshCw, ThumbsUp, ThumbsDown, Check, Download, X, Maximize2, Video, ExternalLink } from "lucide-react";
+import { Hexagon, CheckCheck, Copy, RefreshCw, ThumbsUp, ThumbsDown, Check, Download, X, Maximize2, Video } from "lucide-react";
 import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
 
@@ -160,11 +160,10 @@ export default function MessageBubble({ message, isStreaming }) {
             </div>
           )}
           {message.videoUrl && (
-            <a href={message.videoUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 mb-2.5 bg-white/10 rounded-lg px-3 py-2 text-xs text-white/80 hover:bg-white/20 transition-colors">
+            <div className="flex items-center gap-2 mb-2.5 bg-white/10 rounded-lg px-3 py-2 text-xs text-white/80">
               <Video size={14} className="text-violet-200 shrink-0" />
-              <span className="truncate">视频分析</span>
-              <ExternalLink size={10} className="shrink-0" />
-            </a>
+              <span className="truncate">已上传视频</span>
+            </div>
           )}
           {message.content && <p className="text-sm text-white leading-relaxed">{message.content}</p>}
         </div>
