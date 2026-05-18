@@ -5,6 +5,9 @@ import HomePage from "./components/HomePage";
 import useLocalStorage from "./hooks/useLocalStorage";
 import { chatCompletion } from "./services/api";
 
+const DEFAULT_TEXT_FEATURES = { structuredOutput: false, toolCalling: false, thinking: false };
+const DEFAULT_IMAGE_FEATURES = {};
+
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useLocalStorage("xuannv_theme", "dark");
@@ -13,15 +16,31 @@ function App() {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  // Persisted state
+  // Persisted state — API config
   const [apiUrl, setApiUrl] = useLocalStorage("xuannv_api_url", "");
   const [apiKey, setApiKey] = useLocalStorage("xuannv_api_key", "");
-  const [models, setModels] = useLocalStorage("xuannv_models", []);
-  const [activeModel, setActiveModel] = useLocalStorage("xuannv_active_model", "");
+
+  // Mode — "text" or "image"
   const [mode, setMode] = useLocalStorage("xuannv_mode", "text");
-  const [features, setFeatures] = useLocalStorage("xuannv_features", { video: false, structuredOutput: false, toolCalling: false, thinking: false });
+
+  // Models — shared pool, but each mode has its own active selection
+  const [models, setModels] = useLocalStorage("xuannv_models", []);
+  const [textModel, setTextModel] = useLocalStorage("xuannv_text_model", "");
+  const [imageModel, setImageModel] = useLocalStorage("xuannv_image_model", "");
+
+  // Features — completely separate per mode
+  const [textFeatures, setTextFeatures] = useLocalStorage("xuannv_text_features", DEFAULT_TEXT_FEATURES);
+  const [imageFeatures, setImageFeatures] = useLocalStorage("xuannv_image_features", DEFAULT_IMAGE_FEATURES);
+
   const [chats, setChats] = useLocalStorage("xuannv_chats", []);
   const [activeChat, setActiveChat] = useLocalStorage("xuannv_active_chat", null);
+
+  // Per-mode derived values
+  const activeModel = mode === "image" ? imageModel : textModel;
+  const features = mode === "image" ? imageFeatures : textFeatures;
+
+  const setActiveModel = mode === "image" ? setImageModel : setTextModel;
+  const setFeatures = mode === "image" ? setImageFeatures : setTextFeatures;
 
   const activeChatRef = useRef(activeChat);
   useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
@@ -29,12 +48,13 @@ function App() {
   const titleGenRef = useRef(new Set());
 
   const generateTitle = useCallback(async (chatId, userContent) => {
-    if (!apiUrl || !apiKey || !activeModel) return;
+    const model = textModel || imageModel;
+    if (!apiUrl || !apiKey || !model) return;
     if (titleGenRef.current.has(chatId)) return;
     titleGenRef.current.add(chatId);
     try {
       const data = await chatCompletion({
-        apiUrl, apiKey, model: activeModel,
+        apiUrl, apiKey, model,
         messages: [
           { role: "system", content: "你是标题生成助手。根据用户问题生成4-6字中文标题，概括对话主题。严格只输出标题本身，不加引号、标点、换行或任何额外文字。" },
           { role: "user", content: userContent.slice(0, 300) },
@@ -46,11 +66,10 @@ function App() {
       }
     } catch {
       titleGenRef.current.delete(chatId);
-      // 失败时用首条消息截取作为兜底标题
       const fallback = userContent.replace(/\s/g, "").slice(0, 10);
       setChats((prev) => prev.map((c) => c.id === chatId ? { ...c, title: fallback || "新对话" } : c));
     }
-  }, [apiUrl, apiKey, activeModel, setChats]);
+  }, [apiUrl, apiKey, textModel, imageModel, setChats]);
 
   const currentChat = chats.find((c) => c.id === activeChat) || null;
 
@@ -65,7 +84,8 @@ function App() {
     };
     setChats((prev) => [newChat, ...prev]);
     setActiveChat(newChat.id);
-  }, [mode, setChats, setActiveChat]);
+    if (targetMode !== mode) setMode(targetMode);
+  }, [mode, setChats, setActiveChat, setMode]);
 
   const handleDeleteChat = useCallback(
     (chatId) => {
@@ -110,6 +130,24 @@ function App() {
       );
     },
     [mode, setChats, setActiveChat, generateTitle]
+  );
+
+  const handleModelAdd = useCallback(
+    (m) => {
+      setModels((prev) => [...prev, m]);
+      if (mode === "image" && !imageModel) setImageModel(m.id);
+      if (mode === "text" && !textModel) setTextModel(m.id);
+    },
+    [mode, imageModel, textModel, setModels, setImageModel, setTextModel]
+  );
+
+  const handleModelDelete = useCallback(
+    (modelId) => {
+      setModels((prev) => prev.filter((m) => m.id !== modelId));
+      if (textModel === modelId) setTextModel("");
+      if (imageModel === modelId) setImageModel("");
+    },
+    [textModel, imageModel, setModels, setTextModel, setImageModel]
   );
 
   return (
@@ -186,17 +224,8 @@ function App() {
               models={models}
               activeModel={activeModel}
               onMessagesUpdate={handleUpdateMessages}
-              onModelAdd={(m) => {
-                setModels((prev) => [...prev, m]);
-                if (!activeModel) setActiveModel(m.id);
-              }}
-              onModelDelete={(modelId) => {
-                setModels((prev) => prev.filter((m) => m.id !== modelId));
-                if (activeModel === modelId) {
-                  const rest = models.filter((m) => m.id !== modelId);
-                  setActiveModel(rest.length > 0 ? rest[0].id : "");
-                }
-              }}
+              onModelAdd={handleModelAdd}
+              onModelDelete={handleModelDelete}
               onActiveModelChange={setActiveModel}
               onNewChat={handleNewChat}
               onModeChange={setMode}

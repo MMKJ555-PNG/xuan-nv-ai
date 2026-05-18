@@ -279,7 +279,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
                   </div>
                 </div>
               )}
-              <ChatInput onSend={handleSend} activeModel={activeModel} features={features} onFeaturesChange={onFeaturesChange} variant="hero" />
+              <ChatInput onSend={handleSend} activeModel={activeModel} features={features} onFeaturesChange={onFeaturesChange} mode={mode} variant="hero" />
             </div>
           </div>
         ) : (
@@ -303,6 +303,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
           activeModel={activeModel}
           features={features}
           onFeaturesChange={onFeaturesChange}
+          mode={mode}
           variant="compact"
         />
       )}

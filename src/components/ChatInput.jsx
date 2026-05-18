@@ -7,7 +7,7 @@ const FEATURES = [
   { key: "thinking", label: "深度思考", icon: Brain, desc: "Claude extended thinking" },
 ];
 
-export default function ChatInput({ onSend, activeModel, variant = "compact", features, onFeaturesChange }) {
+export default function ChatInput({ onSend, activeModel, variant = "compact", features, onFeaturesChange, mode = "text" }) {
   const [input, setInput] = useState("");
   const [featureOpen, setFeatureOpen] = useState(false);
   const [videoFile, setVideoFile] = useState(null);
@@ -78,7 +78,8 @@ export default function ChatInput({ onSend, activeModel, variant = "compact", fe
   const hasContent = input.trim().length > 0 || images.length > 0 || (features.video && videoFile);
   const activeFeatures = FEATURES.filter((f) => features[f.key]);
   const isHero = variant === "hero";
-  const isVideoMode = features.video;
+  const isVideoMode = mode === "text" && features.video;
+  const showFeatures = mode === "text";
 
   return (
     <>
@@ -129,55 +130,59 @@ export default function ChatInput({ onSend, activeModel, variant = "compact", fe
             </div>
           )}
           <div className={`flex items-center justify-between gap-2 ${isHero ? "px-4 pb-4" : "px-3 pb-3"}`}>
-            <div className="relative" ref={featureContainerRef}>
-              <button onClick={() => setFeatureOpen(!featureOpen)}
-                className={`flex items-center gap-1.5 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border rounded-lg text-xs dark:text-zinc-300 text-zinc-700 transition-all duration-200 active:scale-95 ${isHero ? "pl-4 pr-3 py-2 text-sm" : "pl-3 pr-2 py-1.5"}`}
-              >
-                <Sparkles size={isHero ? 14 : 12} className="text-violet-400 shrink-0" />
-                <span className="font-medium">{activeFeatures.length > 0 ? `${activeFeatures.length} 项功能` : "功能"}</span>
-                <ChevronDown size={isHero ? 13 : 11} className="dark:text-zinc-500 text-zinc-400 shrink-0 transition-transform duration-200 ml-0.5" style={{ transform: featureOpen ? "rotate(180deg)" : "" }} />
-              </button>
-              {featureOpen && (
-                <div className="absolute bottom-full left-0 mb-2 w-64 dark:bg-zinc-800/95 bg-white/95 backdrop-blur-xl rounded-xl border-[var(--border-default)] border shadow-2xl overflow-hidden z-50">
-                  <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
-                    <span className="text-[10px] dark:text-zinc-500 text-zinc-400 uppercase tracking-wider font-medium">功能特性</span>
+            {showFeatures ? (
+              <div className="relative" ref={featureContainerRef}>
+                <button onClick={() => setFeatureOpen(!featureOpen)}
+                  className={`flex items-center gap-1.5 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border rounded-lg text-xs dark:text-zinc-300 text-zinc-700 transition-all duration-200 active:scale-95 ${isHero ? "pl-4 pr-3 py-2 text-sm" : "pl-3 pr-2 py-1.5"}`}
+                >
+                  <Sparkles size={isHero ? 14 : 12} className="text-violet-400 shrink-0" />
+                  <span className="font-medium">{activeFeatures.length > 0 ? `${activeFeatures.length} 项功能` : "功能"}</span>
+                  <ChevronDown size={isHero ? 13 : 11} className="dark:text-zinc-500 text-zinc-400 shrink-0 transition-transform duration-200 ml-0.5" style={{ transform: featureOpen ? "rotate(180deg)" : "" }} />
+                </button>
+                {featureOpen && (
+                  <div className="absolute bottom-full left-0 mb-2 w-64 dark:bg-zinc-800/95 bg-white/95 backdrop-blur-xl rounded-xl border-[var(--border-default)] border shadow-2xl overflow-hidden z-50">
+                    <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
+                      <span className="text-[10px] dark:text-zinc-500 text-zinc-400 uppercase tracking-wider font-medium">文本功能特性</span>
+                    </div>
+                    <div>
+                      {/* Video mode toggle — text mode only */}
+                      <button
+                        onClick={() => onFeaturesChange({ ...features, video: !features.video })}
+                        className={`w-full px-4 py-3 text-left transition-colors flex items-center gap-3 ${features.video ? "bg-violet-500/10 border-l-2 border-l-violet-400" : "dark:hover:bg-white/[0.04] hover:bg-zinc-100 border-l-2 border-l-transparent"}`}
+                      >
+                        <Video size={16} className={features.video ? "text-violet-400" : "dark:text-zinc-500 text-zinc-400"} />
+                        <div className="flex-1 min-w-0">
+                          <span className={`text-sm block truncate ${features.video ? "text-violet-400 font-medium" : "dark:text-zinc-200 text-zinc-700"}`}>视频分析</span>
+                          <span className="text-[10px] dark:text-zinc-500 text-zinc-400 block truncate">仅 Gemini 系列模型</span>
+                        </div>
+                        {features.video && <Check size={14} className="text-violet-400 shrink-0" />}
+                      </button>
+                      {/* Feature toggles */}
+                      {FEATURES.map((f) => {
+                        const Icon = f.icon;
+                        const active = features[f.key];
+                        return (
+                          <button
+                            key={f.key}
+                            onClick={() => onFeaturesChange({ ...features, [f.key]: !active })}
+                            className={`w-full px-4 py-3 text-left transition-colors flex items-center gap-3 ${active ? "bg-violet-500/10 border-l-2 border-l-violet-400" : "dark:hover:bg-white/[0.04] hover:bg-zinc-100 border-l-2 border-l-transparent"}`}
+                          >
+                            <Icon size={16} className={active ? "text-violet-400" : "dark:text-zinc-500 text-zinc-400"} />
+                            <div className="flex-1 min-w-0">
+                              <span className={`text-sm block truncate ${active ? "text-violet-400 font-medium" : "dark:text-zinc-200 text-zinc-700"}`}>{f.label}</span>
+                              <span className="text-[10px] dark:text-zinc-500 text-zinc-400 block truncate">{f.desc}</span>
+                            </div>
+                            {active && <Check size={14} className="text-violet-400 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div>
-                    {/* Video mode toggle */}
-                    <button
-                      onClick={() => onFeaturesChange({ ...features, video: !features.video })}
-                      className={`w-full px-4 py-3 text-left transition-colors flex items-center gap-3 ${features.video ? "bg-violet-500/10 border-l-2 border-l-violet-400" : "dark:hover:bg-white/[0.04] hover:bg-zinc-100 border-l-2 border-l-transparent"}`}
-                    >
-                      <Video size={16} className={features.video ? "text-violet-400" : "dark:text-zinc-500 text-zinc-400"} />
-                      <div className="flex-1 min-w-0">
-                        <span className={`text-sm block truncate ${features.video ? "text-violet-400 font-medium" : "dark:text-zinc-200 text-zinc-700"}`}>视频分析</span>
-                        <span className="text-[10px] dark:text-zinc-500 text-zinc-400 block truncate">仅 Gemini 系列模型</span>
-                      </div>
-                      {features.video && <Check size={14} className="text-violet-400 shrink-0" />}
-                    </button>
-                    {/* Feature toggles */}
-                    {FEATURES.map((f) => {
-                      const Icon = f.icon;
-                      const active = features[f.key];
-                      return (
-                        <button
-                          key={f.key}
-                          onClick={() => onFeaturesChange({ ...features, [f.key]: !active })}
-                          className={`w-full px-4 py-3 text-left transition-colors flex items-center gap-3 ${active ? "bg-violet-500/10 border-l-2 border-l-violet-400" : "dark:hover:bg-white/[0.04] hover:bg-zinc-100 border-l-2 border-l-transparent"}`}
-                        >
-                          <Icon size={16} className={active ? "text-violet-400" : "dark:text-zinc-500 text-zinc-400"} />
-                          <div className="flex-1 min-w-0">
-                            <span className={`text-sm block truncate ${active ? "text-violet-400 font-medium" : "dark:text-zinc-200 text-zinc-700"}`}>{f.label}</span>
-                            <span className="text-[10px] dark:text-zinc-500 text-zinc-400 block truncate">{f.desc}</span>
-                          </div>
-                          {active && <Check size={14} className="text-violet-400 shrink-0" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            ) : (
+              <div />
+            )}
             <div className="flex items-center gap-1.5">
               {isVideoMode ? (
                 <button
