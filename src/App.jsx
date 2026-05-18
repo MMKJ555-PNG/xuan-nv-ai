@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatArea from "./components/ChatArea";
+import HomePage from "./components/HomePage";
 import useLocalStorage from "./hooks/useLocalStorage";
 import { chatCompletion } from "./services/api";
 
@@ -53,11 +54,12 @@ function App() {
 
   const currentChat = chats.find((c) => c.id === activeChat) || null;
 
-  const handleNewChat = useCallback(() => {
+  const handleNewChat = useCallback((chatMode) => {
+    const targetMode = chatMode || mode;
     const newChat = {
       id: Date.now(),
       title: "新对话",
-      mode,
+      mode: targetMode,
       messages: [],
       createdAt: Date.now(),
     };
@@ -144,56 +146,65 @@ function App() {
       <div className="bg-noise" />
       <div className="fixed inset-0 bg-dot-pattern pointer-events-none z-[2]" />
 
-      {/* Content */}
-      <div className="relative z-10 flex w-full h-full">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          mode={mode}
-          onModeChange={setMode}
-          chats={chats}
-          activeChat={activeChat}
-          onChatSelect={setActiveChat}
-          onNewChat={handleNewChat}
-          onDeleteChat={handleDeleteChat}
-          theme={theme}
-          onThemeToggle={() => setTheme(theme === "dark" ? "light" : "dark")}
-          apiUrl={apiUrl}
-          apiKey={apiKey}
-          onConfigSave={(url, key) => {
-            setApiUrl(url);
-            setApiKey(key);
-          }}
-        />
-
-        <main className="flex-1 flex flex-col min-w-0 relative">
-          <ChatArea
-            chat={currentChat}
+      {/* Content: HomePage when no active chat, otherwise sidebar+chat layout */}
+      {!activeChat ? (
+        <div className="relative z-10 flex w-full h-full">
+          <HomePage
+            onStartChat={() => handleNewChat("text")}
+            onStartImage={() => handleNewChat("image")}
+          />
+        </div>
+      ) : (
+        <div className="relative z-10 flex w-full h-full">
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
             mode={mode}
-            features={features}
-            onFeaturesChange={setFeatures}
+            onModeChange={setMode}
+            chats={chats}
+            activeChat={activeChat}
+            onChatSelect={setActiveChat}
+            onNewChat={handleNewChat}
+            onDeleteChat={handleDeleteChat}
+            theme={theme}
+            onThemeToggle={() => setTheme(theme === "dark" ? "light" : "dark")}
             apiUrl={apiUrl}
             apiKey={apiKey}
-            models={models}
-            activeModel={activeModel}
-            onMessagesUpdate={handleUpdateMessages}
-            onModelAdd={(m) => {
-              setModels((prev) => [...prev, m]);
-              if (!activeModel) setActiveModel(m.id);
+            onConfigSave={(url, key) => {
+              setApiUrl(url);
+              setApiKey(key);
             }}
-            onModelDelete={(modelId) => {
-              setModels((prev) => prev.filter((m) => m.id !== modelId));
-              if (activeModel === modelId) {
-                const rest = models.filter((m) => m.id !== modelId);
-                setActiveModel(rest.length > 0 ? rest[0].id : "");
-              }
-            }}
-            onActiveModelChange={setActiveModel}
-            onNewChat={handleNewChat}
-            onModeChange={setMode}
           />
-        </main>
-      </div>
+
+          <main className="flex-1 flex flex-col min-w-0 relative">
+            <ChatArea
+              chat={currentChat}
+              mode={mode}
+              features={features}
+              onFeaturesChange={setFeatures}
+              apiUrl={apiUrl}
+              apiKey={apiKey}
+              models={models}
+              activeModel={activeModel}
+              onMessagesUpdate={handleUpdateMessages}
+              onModelAdd={(m) => {
+                setModels((prev) => [...prev, m]);
+                if (!activeModel) setActiveModel(m.id);
+              }}
+              onModelDelete={(modelId) => {
+                setModels((prev) => prev.filter((m) => m.id !== modelId));
+                if (activeModel === modelId) {
+                  const rest = models.filter((m) => m.id !== modelId);
+                  setActiveModel(rest.length > 0 ? rest[0].id : "");
+                }
+              }}
+              onActiveModelChange={setActiveModel}
+              onNewChat={handleNewChat}
+              onModeChange={setMode}
+            />
+          </main>
+        </div>
+      )}
     </div>
   );
 }
