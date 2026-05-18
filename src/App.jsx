@@ -12,15 +12,13 @@ const DEFAULT_IMAGE_FEATURES = {};
 const INITIAL_COVER_STATE = {
   referenceImage: null,
   title: "",
-  episodeNumber: 1,
   requirements: "",
+  coverModel: "",   // independent model for cover generation
   covers: {
     "3:4": { imageUrl: null, prompt: "", isGenerating: false },
     "16:9": { imageUrl: null, prompt: "", isGenerating: false },
   },
-  episodeText: "",
-  episodeCount: 1,
-  episodes: [],
+  gallery: [],      // saved works: [{ id, title, createdAt, "3:4":url, "16:9":url }]
   currentStep: 1,
 };
 
@@ -272,8 +270,6 @@ function App() {
           onCoverStateChange={setCoverState}
           apiUrl={apiUrl}
           apiKey={apiKey}
-          imageModel={imageModel}
-          textModel={textModel}
           models={models}
           theme={theme}
           onThemeToggle={themeToggle}

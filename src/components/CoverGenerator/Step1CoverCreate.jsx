@@ -1,31 +1,62 @@
 import { useState, useRef } from "react";
-import { Upload, X, Sparkles, AlertTriangle, Info } from "lucide-react";
+import { Upload, X, Sparkles, Info, Image } from "lucide-react";
 import CoverResultCard from "./CoverResultCard";
 import { chatCompletion } from "../../services/api";
 
-function buildRatioPrompt(title, episodeNumber, ratio, ratioLabel, requirements, referenceImage) {
+/**
+ * 构建优化后的封面生成提示词。
+ * 核心约束：
+ * 1. 封面上只允许出现标题文字，禁止任何其他文字（无序数字、无日期、无副标题、无水印等）
+ * 2. 标题文字必须经过精心设计，具有高视觉吸引力
+ * 3. 整体风格应契合用户上传的参考图风格
+ * 4. 所有输出为中文
+ */
+function buildCoverPrompt(title, ratioValue, ratioLabel, requirements, hasReference) {
+  const styleGuide = requirements
+    ? `整体设计风格要求：${requirements}`
+    : "整体设计风格：现代简约、高级质感、适合短视频平台展示，色彩搭配协调，构图具有视觉冲击力";
+
   const lines = [
-    `你是一个专业的短视频封面设计师。请根据以下信息生成一张比例为 ${ratioLabel}（${ratio}）的短视频封面图。`,
-    ``,
-    `【必须包含的元素】`,
-    `1. 封面标题必须包含文字："${title}"，字体醒目大气，位置居中偏上`,
-    `2. 第${episodeNumber}集的集数信息显示在封面右上角，格式为"第${episodeNumber}集"，字体清晰`,
-    `3. 整体设计风格：${requirements || "现代简约、高级感、适合短视频平台展示"}`,
-    ``,
+    "你是一位资深短视频封面设计师，拥有顶级的视觉审美和排版能力。",
+    "",
+    `【生成任务】`,
+    `请生成一张比例为 ${ratioLabel}（宽高比 ${ratioValue}）的高质量短视频封面图。`,
+    "",
+    `【严格的文字约束 — 必须遵守】`,
+    `1. 封面上只能出现标题文字"${title}"，除此之外不得出现任何其他文字`,
+    `2. 绝对禁止出现：集号、日期、英文、数字、副标题、水印、署名、第X集、任何额外字符`,
+    `3. 如果参考图中包含文字，请忽略这些文字，仅将"${title}"作为唯一文字元素融入画面`,
+    "",
+    `【标题文字设计规范】`,
+    `1. 标题"${title}"必须经过精心排版设计，成为画面的视觉焦点`,
+    `2. 字体风格：使用大气醒目的艺术字体，笔画清晰有力，具有设计感`,
+    `3. 排版位置：根据构图美感放置在视觉最佳位置（如居中偏上、黄金分割点）`,
+    `4. 配色方案：文字颜色需与背景形成强烈对比，确保高可读性，可使用渐变、描边或阴影增强效果`,
+    `5. 视觉效果：文字应具有立体感或光影质感，与整体画面完美融合，不显得突兀`,
+    "",
+    `【设计风格要求】`,
+    `${styleGuide}`,
+    ...(hasReference ? [
+      "如果用户提供了参考底图，请仔细分析参考图的色调、氛围、构图风格和视觉语言，",
+      "将这些风格元素融入生成的封面中，确保生成结果与参考图的视觉调性一致。",
+    ] : []),
+    "",
     `【输出要求】`,
-    `- 请直接输出封面图片的URL`,
-    `- 图片应为高质量、可直接使用的封面图`,
+    "请直接输出封面图片的URL链接。图片应为高质量、分辨率充足、可直接用于短视频平台的封面图。",
   ];
+
   return lines.join("\n");
 }
 
-export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUrl, apiKey, imageModel, onNext, title: filenameTitle }) {
+export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUrl, apiKey, models, onNext }) {
   const fileInputRef = useRef(null);
-  const [uploading, setUploading] = useState(false);
+  const [customModel, setCustomModel] = useState(coverState.coverModel || "");
 
-  const { referenceImage, title, episodeNumber, requirements, covers } = coverState;
+  const { referenceImage, title, requirements, covers, coverModel } = coverState;
 
   const update = (patch) => onCoverStateChange({ ...coverState, ...patch });
+
+  const activeModel = coverModel || models[0]?.id || "";
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -43,7 +74,7 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
   };
 
   const handleGenerate = async () => {
-    if (!apiUrl || !apiKey || !imageModel) return;
+    if (!apiUrl || !apiKey || !activeModel) return;
     if (!title || title.length < 2 || title.length > 6) return;
 
     const ratios = [
@@ -61,13 +92,13 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
     if (referenceImage) {
       userMessage.push({ type: "image_url", image_url: { url: referenceImage } });
     }
-    userMessage.push({ type: "text", text: "请参考上述要求生成短视频封面图" });
+    userMessage.push({ type: "text", text: "请根据上述规范生成高品质短视频封面图。严格确保画面中只包含标题文字，无任何其他文字内容。" });
 
     const results = await Promise.allSettled(
       ratios.map(async (r) => {
-        const systemPrompt = buildRatioPrompt(title, episodeNumber, r.value, r.label, requirements, !!referenceImage);
+        const systemPrompt = buildCoverPrompt(title, r.value, r.label, requirements, !!referenceImage);
         return await chatCompletion({
-          apiUrl, apiKey, model: imageModel,
+          apiUrl, apiKey, model: activeModel,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userMessage },
@@ -81,7 +112,6 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
       const key = ratios[i].key;
       if (result.status === "fulfilled") {
         const content = result.value.choices?.[0]?.message?.content || "";
-        // Try to extract URLs from markdown or direct URLs
         const mdMatch = content.match(/!\[.*?\]\((https?:\/\/[^\s)]+)\)/);
         const urlMatch = content.match(/(https?:\/\/[^\s]+\.(png|jpg|jpeg|gif|webp))/i);
         const imageUrl = mdMatch ? mdMatch[1] : urlMatch ? urlMatch[0] : content.trim();
@@ -104,7 +134,7 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
   };
 
   const handleRegenRatio = async (ratioKey, extraPrompt) => {
-    if (!apiUrl || !apiKey || !imageModel) return;
+    if (!apiUrl || !apiKey || !activeModel) return;
     const ratioMap = { "3:4": { value: "3/4", label: "竖版 (3:4)" }, "16:9": { value: "16/9", label: "横版 (16:9)" } };
     const r = ratioMap[ratioKey];
 
@@ -113,16 +143,17 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
     update({ covers: newCovers });
 
     try {
+      const extraHint = extraPrompt ? `\n补充设计要求：${extraPrompt}` : "";
       const userMessage = [];
       if (referenceImage) {
         userMessage.push({ type: "image_url", image_url: { url: referenceImage } });
       }
-      userMessage.push({ type: "text", text: extraPrompt || "请重新生成封面图" });
+      userMessage.push({ type: "text", text: "请重新生成封面图，严格确保画面中只包含标题文字。" + extraHint });
 
       const data = await chatCompletion({
-        apiUrl, apiKey, model: imageModel,
+        apiUrl, apiKey, model: activeModel,
         messages: [
-          { role: "system", content: buildRatioPrompt(title, episodeNumber, r.value, r.label, `${requirements} ${extraPrompt ? `补充要求：${extraPrompt}` : ""}`.trim(), !!referenceImage) },
+          { role: "system", content: buildCoverPrompt(title, r.value, r.label, requirements + extraHint, !!referenceImage) },
           { role: "user", content: userMessage },
         ],
       });
@@ -149,7 +180,7 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
 
   const allGenerated = covers["3:4"]?.imageUrl && covers["16:9"]?.imageUrl && !covers["3:4"]?.isGenerating && !covers["16:9"]?.isGenerating;
   const anyGenerating = covers["3:4"]?.isGenerating || covers["16:9"]?.isGenerating;
-  const canGenerate = apiUrl && apiKey && imageModel && title.length >= 2 && title.length <= 6;
+  const canGenerate = apiUrl && apiKey && activeModel && title.length >= 2 && title.length <= 6;
 
   return (
     <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -183,52 +214,87 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
           </div>
 
-          {/* Title + Episode row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-            <div>
-              <label className="text-xs dark:text-zinc-500 text-zinc-600 mb-2 block font-medium">
-                封面标题 <span className="text-red-400">*</span>
-                <span className={`ml-2 ${title.length >= 2 && title.length <= 6 ? "text-emerald-400" : "text-red-400"}`}>
-                  {title.length}/6 字
-                </span>
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => update({ title: e.target.value.slice(0, 6) })}
-                placeholder="输入4-6字标题"
-                maxLength={6}
-                className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2.5 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-400 outline-none focus:border-violet-500/40 transition-colors"
-              />
-              {title.length > 0 && (title.length < 2 || title.length > 6) && (
-                <p className="text-[10px] text-red-400 mt-1">标题需为 2-6 个字</p>
-              )}
-            </div>
-            <div>
-              <label className="text-xs dark:text-zinc-500 text-zinc-600 mb-2 block font-medium">起始集数</label>
-              <input
-                type="number"
-                value={episodeNumber}
-                onChange={(e) => update({ episodeNumber: Math.max(1, parseInt(e.target.value) || 1) })}
-                min={1}
-                className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2.5 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-400 outline-none focus:border-violet-500/40 transition-colors"
-              />
-            </div>
+          {/* Title */}
+          <div className="mb-5">
+            <label className="text-xs dark:text-zinc-500 text-zinc-600 mb-2 block font-medium">
+              封面标题 <span className="text-red-400">*</span>
+              <span className={`ml-2 ${title.length >= 2 && title.length <= 6 ? "text-emerald-400" : "text-red-400"}`}>
+                {title.length}/6 字
+              </span>
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => update({ title: e.target.value.slice(0, 6) })}
+              placeholder="输入2-6字封面标题（封面上仅显示此标题文字）"
+              maxLength={6}
+              className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2.5 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-400 outline-none focus:border-violet-500/40 transition-colors"
+            />
+            {title.length > 0 && (title.length < 2 || title.length > 6) && (
+              <p className="text-[10px] text-red-400 mt-1">标题需为 2-6 个字</p>
+            )}
           </div>
 
           {/* Requirements */}
           <div className="mb-5">
             <label className="text-xs dark:text-zinc-500 text-zinc-600 mb-2 block font-medium">
-              可选要求 <span className="text-zinc-400">({requirements.length}/200)</span>
+              设计要求（可选）<span className="text-zinc-400">({requirements.length}/200)</span>
             </label>
             <textarea
               value={requirements}
               onChange={(e) => update({ requirements: e.target.value.slice(0, 200) })}
-              placeholder="例如：科技感风格、深色背景、突出人物主体..."
+              placeholder="例如：赛博朋克风格、深色调、居中构图、霓虹灯效果..."
               rows={3}
               maxLength={200}
               className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2.5 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-400 outline-none focus:border-violet-500/40 transition-colors resize-none"
             />
+          </div>
+
+          {/* Model Selector — independent, manual input */}
+          <div className="mb-5">
+            <label className="text-xs dark:text-zinc-500 text-zinc-600 mb-2 block font-medium flex items-center gap-1">
+              <Image size={12} className="text-violet-400" />
+              AI 图像生成模型
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={activeModel}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "__custom__") {
+                    update({ coverModel: customModel || "" });
+                  } else {
+                    update({ coverModel: val });
+                  }
+                }}
+                className="flex-1 dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2.5 text-sm dark:text-white text-zinc-800 outline-none focus:border-violet-500/40 transition-colors"
+              >
+                <option value="">— 选择模型 —</option>
+                {models.map((m) => (
+                  <option key={m.id} value={m.id}>{m.name}</option>
+                ))}
+                <option value="__custom__">— 手动输入模型 —</option>
+              </select>
+            </div>
+            {(activeModel === customModel || !models.some(m => m.id === activeModel)) && activeModel && (
+              <div className="mt-2">
+                <input
+                  type="text"
+                  value={customModel || activeModel}
+                  onChange={(e) => {
+                    setCustomModel(e.target.value);
+                    update({ coverModel: e.target.value });
+                  }}
+                  placeholder="输入模型 ID，例如：gpt-4o 或 dall-e-3"
+                  className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2.5 text-xs dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-400 outline-none focus:border-violet-500/40 transition-colors font-mono"
+                />
+              </div>
+            )}
+            {!activeModel && (
+              <p className="text-[10px] dark:text-zinc-500 text-zinc-400 mt-1">
+                请选择或手动输入用于生成封面图像的AI模型
+              </p>
+            )}
           </div>
 
           {/* Generate button */}
@@ -241,9 +307,9 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
               <Sparkles size={16} />
               {anyGenerating ? "生成中..." : "一键生成"}
             </button>
-            {!imageModel && (
+            {!activeModel && apiUrl && apiKey && (
               <p className="text-[10px] dark:text-zinc-500 text-zinc-400 flex items-center gap-1">
-                <Info size={12} /> 请先在首页配置API并选择图像模型
+                <Info size={12} /> 请在下方选择图像生成模型
               </p>
             )}
           </div>
@@ -263,7 +329,7 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
                 regenerating={covers["3:4"]?.isGenerating}
                 onRegenerate={() => handleRegenRatio("3:4")}
                 onRegenerateWithPrompt={(prompt) => handleRegenRatio("3:4", prompt)}
-                filename={`${title}_第${episodeNumber}集_3x4.png`}
+                filename={`${title}_3x4.png`}
               />
               <CoverResultCard
                 ratioLabel="横版 (16:9)"
@@ -274,7 +340,7 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
                 regenerating={covers["16:9"]?.isGenerating}
                 onRegenerate={() => handleRegenRatio("16:9")}
                 onRegenerateWithPrompt={(prompt) => handleRegenRatio("16:9", prompt)}
-                filename={`${title}_第${episodeNumber}集_16x9.png`}
+                filename={`${title}_16x9.png`}
               />
             </div>
           </div>
@@ -282,12 +348,12 @@ export default function Step1CoverCreate({ coverState, onCoverStateChange, apiUr
 
         {/* Next Step */}
         {allGenerated && (
-          <div className="flex justify-center pb-4">
+          <div className="flex justify-center pb-4 gap-3">
             <button
               onClick={onNext}
               className="flex items-center gap-2 px-8 py-3 rounded-xl text-sm font-semibold bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20 transition-all duration-200 active:scale-95"
             >
-              下一步 — 集数编辑与批量下载
+              下一步 — 作品库
               <Sparkles size={16} />
             </button>
           </div>

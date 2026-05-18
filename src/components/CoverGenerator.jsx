@@ -1,8 +1,8 @@
 import { ArrowLeft, Sun, Moon, Hexagon, Sparkles } from "lucide-react";
 import Step1CoverCreate from "./CoverGenerator/Step1CoverCreate";
-import Step2EpisodeEdit from "./CoverGenerator/Step2EpisodeEdit";
+import Step2Gallery from "./CoverGenerator/Step2Gallery";
 
-export default function CoverGenerator({ coverState, onCoverStateChange, apiUrl, apiKey, imageModel, textModel, models, theme, onThemeToggle, onBackToHome }) {
+export default function CoverGenerator({ coverState, onCoverStateChange, apiUrl, apiKey, models, theme, onThemeToggle, onBackToHome }) {
   const update = (patch) => onCoverStateChange({ ...coverState, ...patch });
   const currentStep = coverState.currentStep || 1;
 
@@ -38,12 +38,12 @@ export default function CoverGenerator({ coverState, onCoverStateChange, apiUrl,
             </button>
             <button
               onClick={() => {
-                const hasCovers = coverState.covers?.["3:4"]?.imageUrl && coverState.covers?.["16:9"]?.imageUrl;
+                const hasCovers = coverState.covers?.["3:4"]?.imageUrl || coverState.covers?.["16:9"]?.imageUrl;
                 if (hasCovers) update({ currentStep: 2 });
               }}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 ${currentStep === 2 ? "bg-violet-500/15 text-violet-600 dark:text-violet-400 shadow-sm" : "dark:text-zinc-500 text-zinc-500 dark:hover:text-zinc-300 hover:text-zinc-700"}`}
             >
-              第2步 · 集数编辑
+              第2步 · 作品库
             </button>
           </div>
 
@@ -65,18 +65,15 @@ export default function CoverGenerator({ coverState, onCoverStateChange, apiUrl,
           onCoverStateChange={onCoverStateChange}
           apiUrl={apiUrl}
           apiKey={apiKey}
-          imageModel={imageModel}
+          models={models}
           onNext={() => update({ currentStep: 2 })}
         />
       )}
 
       {currentStep === 2 && (
-        <Step2EpisodeEdit
+        <Step2Gallery
           coverState={coverState}
           onCoverStateChange={onCoverStateChange}
-          apiUrl={apiUrl}
-          apiKey={apiKey}
-          imageModel={imageModel}
           onBack={() => update({ currentStep: 1 })}
         />
       )}
