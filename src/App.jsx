@@ -174,6 +174,7 @@ function App() {
               setApiUrl(url);
               setApiKey(key);
             }}
+            onGoHome={() => setActiveChat(null)}
           />
 
           <main className="flex-1 flex flex-col min-w-0 relative">

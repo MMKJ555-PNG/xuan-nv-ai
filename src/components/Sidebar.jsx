@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Hexagon, PanelLeftClose, PanelLeftOpen, Plus, Clock, Settings, MessageSquare, Image, Trash2, Sun, Moon, Download, Upload } from "lucide-react";
+import { Hexagon, PanelLeftClose, PanelLeftOpen, Plus, Clock, Settings, MessageSquare, Image, Trash2, Sun, Moon, Download, Upload, Home } from "lucide-react";
 
 const STORAGE_KEYS = [
   "xuannv_api_url",
@@ -13,7 +13,7 @@ const STORAGE_KEYS = [
   "xuannv_theme",
 ];
 
-export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats, activeChat, onChatSelect, onNewChat, onDeleteChat, theme, onThemeToggle, apiUrl, apiKey, onConfigSave }) {
+export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats, activeChat, onChatSelect, onNewChat, onDeleteChat, theme, onThemeToggle, apiUrl, apiKey, onConfigSave, onGoHome }) {
   const [configOpen, setConfigOpen] = useState(false);
   const [urlInput, setUrlInput] = useState(apiUrl);
   const [keyInput, setKeyInput] = useState(apiKey);
@@ -121,6 +121,11 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
 
         {/* Theme + Config */}
         <div className={`mt-auto p-3 flex flex-col gap-1.5 ${collapsed ? "items-center" : ""}`}>
+          <button onClick={onGoHome}
+            className={`flex items-center gap-3 dark:bg-white/[0.03] bg-zinc-100 dark:hover:bg-white/[0.06] hover:bg-zinc-200 border-[var(--border-subtle)] border rounded-xl transition-all duration-200 active:scale-[0.98] ${collapsed ? "p-2" : "px-3 py-2.5 w-full"}`}
+          ><Home size={18} className="dark:text-zinc-400 text-zinc-500 shrink-0" />
+            {!collapsed && <span className="text-sm dark:text-zinc-400 text-zinc-500">首页</span>}
+          </button>
           <button onClick={onThemeToggle}
             className={`flex items-center gap-3 dark:bg-white/[0.03] bg-zinc-100 dark:hover:bg-white/[0.06] hover:bg-zinc-200 border-[var(--border-subtle)] border rounded-xl transition-all duration-200 active:scale-[0.98] ${collapsed ? "p-2" : "px-3 py-2.5 w-full"}`}
           >{theme === "dark" ? <Sun size={18} className="text-amber-400 shrink-0" /> : <Moon size={18} className="text-indigo-400 shrink-0" />}
