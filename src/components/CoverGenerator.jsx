@@ -63,7 +63,12 @@ export default function CoverGenerator({ coverState, onCoverStateChange, apiUrl,
   const [galleryPreview, setGalleryPreview] = useState(null);
   const [savedMsg, setSavedMsg] = useState("");
 
-  const { referenceImage, title, requirements, covers, coverModel, gallery } = coverState;
+  const referenceImage = coverState?.referenceImage || null;
+  const title = coverState?.title || "";
+  const requirements = coverState?.requirements || "";
+  const covers = coverState?.covers || { "3:4": { imageUrl: null, prompt: "", isGenerating: false }, "16:9": { imageUrl: null, prompt: "", isGenerating: false } };
+  const coverModel = coverState?.coverModel || "";
+  const gallery = coverState?.gallery || [];
   const update = (patch) => onCoverStateChange({ ...coverState, ...patch });
   const activeModel = coverModel || models[0]?.id || "";
 

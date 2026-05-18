@@ -50,7 +50,9 @@ function App() {
 
   // Feature routing: "home" | "chat" | "cover"
   const [activeFeature, setActiveFeature] = useLocalStorage("xuannv_active_feature", "home");
-  const [coverState, setCoverState] = useLocalStorage("xuannv_cover_state", INITIAL_COVER_STATE);
+  const [coverStateRaw, setCoverState] = useLocalStorage("xuannv_cover_state", INITIAL_COVER_STATE);
+  // Normalize: merge with defaults so missing fields from older versions don't crash
+  const coverState = { ...INITIAL_COVER_STATE, ...coverStateRaw };
 
   // Per-mode derived values
   const activeModel = mode === "image" ? imageModel : textModel;
