@@ -1,68 +1,8 @@
-import { useState, useRef } from "react";
-import { Hexagon, PanelLeftClose, PanelLeftOpen, Plus, Clock, Settings, MessageSquare, Image, Trash2, Sun, Moon, Download, Upload, Home } from "lucide-react";
+import { useState } from "react";
+import { Hexagon, PanelLeftClose, PanelLeftOpen, Plus, Clock, MessageSquare, Image, Trash2, Sun, Moon, Home } from "lucide-react";
 
-const STORAGE_KEYS = [
-  "xuannv_api_url",
-  "xuannv_api_key",
-  "xuannv_models",
-  "xuannv_active_model",
-  "xuannv_mode",
-  "xuannv_features",
-  "xuannv_chats",
-  "xuannv_active_chat",
-  "xuannv_theme",
-];
-
-export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats, activeChat, onChatSelect, onNewChat, onDeleteChat, theme, onThemeToggle, apiUrl, apiKey, onConfigSave, onGoHome }) {
-  const [configOpen, setConfigOpen] = useState(false);
-  const [urlInput, setUrlInput] = useState(apiUrl);
-  const [keyInput, setKeyInput] = useState(apiKey);
-  const fileInputRef = useRef(null);
-  const [importMsg, setImportMsg] = useState("");
+export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats, activeChat, onChatSelect, onNewChat, onDeleteChat, theme, onThemeToggle, onGoHome }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
-
-  const handleExport = () => {
-    const data = {};
-    STORAGE_KEYS.forEach((key) => {
-      const raw = localStorage.getItem(key);
-      data[key] = raw ? JSON.parse(raw) : null;
-    });
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `xuannv-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImport = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImportMsg("");
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const data = JSON.parse(ev.target.result);
-        if (typeof data !== "object" || data === null) throw new Error("无效的数据格式");
-        let restored = 0;
-        STORAGE_KEYS.forEach((key) => {
-          if (key in data && data[key] !== undefined) {
-            localStorage.setItem(key, JSON.stringify(data[key]));
-            restored++;
-          }
-        });
-        setImportMsg(`已恢复 ${restored} 项数据，即将刷新页面...`);
-        setTimeout(() => window.location.reload(), 1200);
-      } catch (err) {
-        setImportMsg(`导入失败：${err.message}`);
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
 
   return (
     <>
@@ -79,7 +19,6 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
             {collapsed ? <PanelLeftOpen size={16} className="dark:text-zinc-500 text-zinc-600" /> : <PanelLeftClose size={16} className="dark:text-zinc-500 text-zinc-600" />}
           </button>
         </div>
-
 
         {/* New Chat */}
         <div className={`px-3 mb-3 ${collapsed ? "flex justify-center" : ""}`}>
@@ -119,7 +58,7 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
           </div>
         )}
 
-        {/* Theme + Config */}
+        {/* Home + Theme */}
         <div className={`mt-auto p-3 flex flex-col gap-1.5 ${collapsed ? "items-center" : ""}`}>
           <button onClick={onGoHome}
             className={`flex items-center gap-3 dark:bg-white/[0.03] bg-zinc-100 dark:hover:bg-white/[0.06] hover:bg-zinc-200 border-[var(--border-subtle)] border rounded-xl transition-all duration-200 active:scale-[0.98] ${collapsed ? "p-2" : "px-3 py-2.5 w-full"}`}
@@ -131,46 +70,8 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
           >{theme === "dark" ? <Sun size={18} className="text-amber-400 shrink-0" /> : <Moon size={18} className="text-indigo-400 shrink-0" />}
             {!collapsed && <span className="text-sm dark:text-zinc-400 text-zinc-500">{theme === "dark" ? "浅色模式" : "深色模式"}</span>}
           </button>
-          <button onClick={() => { setUrlInput(apiUrl); setKeyInput(apiKey); setConfigOpen(true); }}
-            className={`flex items-center gap-3 dark:bg-white/[0.03] bg-zinc-100 dark:hover:bg-white/[0.06] hover:bg-zinc-200 border-[var(--border-subtle)] border rounded-xl transition-all duration-200 active:scale-[0.98] ${collapsed ? "p-2" : "px-3 py-2.5 w-full"}`}
-          ><Settings size={18} className="dark:text-zinc-400 text-zinc-500 shrink-0" />{!collapsed && <span className="text-sm dark:text-zinc-400 text-zinc-500">配置</span>}</button>
         </div>
       </aside>
-
-      {/* Config Modal */}
-      {configOpen && (<>
-        <div className="fixed inset-0 bg-black/60 dark:bg-black/60 bg-black/40 backdrop-blur-sm z-40" onClick={() => setConfigOpen(false)} />
-        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[420px] max-w-[90vw] dark:bg-zinc-900/95 bg-white/95 backdrop-blur-xl rounded-2xl border-[var(--border-default)] border shadow-2xl animate-message-in overflow-hidden">
-          <div className="px-5 py-4 border-b border-[var(--border-subtle)]"><span className="text-sm font-semibold dark:text-zinc-200 text-zinc-800">API 配置</span></div>
-          <div className="p-5 space-y-4">
-            <div><label className="text-xs dark:text-zinc-500 text-zinc-500 mb-1.5 block">API 地址</label>
-              <input type="text" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://api.openai.com"
-                className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2.5 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-400 outline-none focus:border-violet-500/40 transition-colors" /></div>
-            <div><label className="text-xs dark:text-zinc-500 text-zinc-500 mb-1.5 block">API 密钥</label>
-              <input type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="sk-..."
-                className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2.5 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-400 outline-none focus:border-violet-500/40 transition-colors" /></div>
-          </div>
-          <div className="px-5 py-3 border-t border-[var(--border-subtle)]">
-            <p className="text-[10px] dark:text-zinc-500 text-zinc-500 mb-2 uppercase tracking-wider font-medium">数据管理</p>
-            <div className="flex gap-2">
-              <button onClick={handleExport}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs dark:text-zinc-300 text-zinc-600 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border transition-all duration-200"
-              ><Download size={12} />导出备份</button>
-              <button onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs dark:text-zinc-300 text-zinc-600 dark:bg-white/[0.05] bg-zinc-100 dark:hover:bg-white/[0.08] hover:bg-zinc-200 border-[var(--border-subtle)] border transition-all duration-200"
-              ><Upload size={12} />导入恢复</button>
-              <input ref={fileInputRef} type="file" accept=".json" onChange={handleImport} className="hidden" />
-            </div>
-            {importMsg && (
-              <p className={`text-xs mt-2 ${importMsg.includes("失败") ? "text-red-400" : "text-emerald-400"}`}>{importMsg}</p>
-            )}
-          </div>
-          <div className="px-5 py-3 dark:bg-white/[0.02] bg-zinc-50 border-t border-[var(--border-subtle)] flex justify-end gap-2">
-            <button onClick={() => setConfigOpen(false)} className="px-4 py-2 rounded-lg text-sm dark:text-zinc-400 text-zinc-500 dark:hover:text-zinc-200 hover:text-zinc-700 dark:hover:bg-white/[0.04] hover:bg-zinc-100 transition-colors">取消</button>
-            <button onClick={() => { onConfigSave(urlInput, keyInput); setConfigOpen(false); }} className="px-5 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors">保存</button>
-          </div>
-        </div>
-      </>)}
 
       {/* Delete Confirm Modal */}
       {deleteTarget && (<>

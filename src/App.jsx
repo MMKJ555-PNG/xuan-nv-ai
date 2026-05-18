@@ -2,11 +2,27 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatArea from "./components/ChatArea";
 import HomePage from "./components/HomePage";
+import CoverGenerator from "./components/CoverGenerator";
 import useLocalStorage from "./hooks/useLocalStorage";
 import { chatCompletion } from "./services/api";
 
 const DEFAULT_TEXT_FEATURES = { structuredOutput: false, toolCalling: false, thinking: false };
 const DEFAULT_IMAGE_FEATURES = {};
+
+const INITIAL_COVER_STATE = {
+  referenceImage: null,
+  title: "",
+  episodeNumber: 1,
+  requirements: "",
+  covers: {
+    "3:4": { imageUrl: null, prompt: "", isGenerating: false },
+    "16:9": { imageUrl: null, prompt: "", isGenerating: false },
+  },
+  episodeText: "",
+  episodeCount: 1,
+  episodes: [],
+  currentStep: 1,
+};
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -34,6 +50,10 @@ function App() {
 
   const [chats, setChats] = useLocalStorage("xuannv_chats", []);
   const [activeChat, setActiveChat] = useLocalStorage("xuannv_active_chat", null);
+
+  // Feature routing: "home" | "chat" | "cover"
+  const [activeFeature, setActiveFeature] = useLocalStorage("xuannv_active_feature", "home");
+  const [coverState, setCoverState] = useLocalStorage("xuannv_cover_state", INITIAL_COVER_STATE);
 
   // Per-mode derived values
   const activeModel = mode === "image" ? imageModel : textModel;
@@ -84,8 +104,9 @@ function App() {
     };
     setChats((prev) => [newChat, ...prev]);
     setActiveChat(newChat.id);
+    setActiveFeature("chat");
     if (targetMode !== mode) setMode(targetMode);
-  }, [mode, setChats, setActiveChat, setMode]);
+  }, [mode, setChats, setActiveChat, setActiveFeature, setMode]);
 
   const handleDeleteChat = useCallback(
     (chatId) => {
@@ -150,6 +171,15 @@ function App() {
     [textModel, imageModel, setModels, setTextModel, setImageModel]
   );
 
+  const handleGoHome = useCallback(() => {
+    setActiveFeature("home");
+    setActiveChat(null);
+  }, [setActiveFeature, setActiveChat]);
+
+  const themeToggle = useCallback(() => {
+    setTheme(theme === "dark" ? "light" : "dark");
+  }, [theme, setTheme]);
+
   return (
     <div className="flex h-screen text-white antialiased relative">
       {/* Background gradient orbs */}
@@ -184,15 +214,21 @@ function App() {
       <div className="bg-noise" />
       <div className="fixed inset-0 bg-dot-pattern pointer-events-none z-[2]" />
 
-      {/* Content: HomePage when no active chat, otherwise sidebar+chat layout */}
-      {!activeChat ? (
+      {/* Content routing */}
+      {activeFeature === "home" && (
         <HomePage
           onStartChat={() => handleNewChat("text")}
           onStartImage={() => handleNewChat("image")}
+          onStartCover={() => setActiveFeature("cover")}
           theme={theme}
-          onThemeToggle={() => setTheme(theme === "dark" ? "light" : "dark")}
+          onThemeToggle={themeToggle}
+          apiUrl={apiUrl}
+          apiKey={apiKey}
+          onConfigSave={(url, key) => { setApiUrl(url); setApiKey(key); }}
         />
-      ) : (
+      )}
+
+      {activeFeature === "chat" && (
         <div className="relative z-10 flex w-full h-full">
           <Sidebar
             collapsed={sidebarCollapsed}
@@ -205,14 +241,8 @@ function App() {
             onNewChat={handleNewChat}
             onDeleteChat={handleDeleteChat}
             theme={theme}
-            onThemeToggle={() => setTheme(theme === "dark" ? "light" : "dark")}
-            apiUrl={apiUrl}
-            apiKey={apiKey}
-            onConfigSave={(url, key) => {
-              setApiUrl(url);
-              setApiKey(key);
-            }}
-            onGoHome={() => setActiveChat(null)}
+            onThemeToggle={themeToggle}
+            onGoHome={handleGoHome}
           />
 
           <main className="flex-1 flex flex-col min-w-0 relative">
@@ -234,6 +264,21 @@ function App() {
             />
           </main>
         </div>
+      )}
+
+      {activeFeature === "cover" && (
+        <CoverGenerator
+          coverState={coverState}
+          onCoverStateChange={setCoverState}
+          apiUrl={apiUrl}
+          apiKey={apiKey}
+          imageModel={imageModel}
+          textModel={textModel}
+          models={models}
+          theme={theme}
+          onThemeToggle={themeToggle}
+          onBackToHome={handleGoHome}
+        />
       )}
     </div>
   );
