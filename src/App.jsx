@@ -189,6 +189,8 @@ function App() {
         <HomePage
           onStartChat={() => handleNewChat("text")}
           onStartImage={() => handleNewChat("image")}
+          theme={theme}
+          onThemeToggle={() => setTheme(theme === "dark" ? "light" : "dark")}
         />
       ) : (
         <div className="relative z-10 flex w-full h-full">

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { MessageSquare, Sparkles, ArrowRight, Hexagon, ChevronRight, Clock } from "lucide-react";
+import { MessageSquare, Sparkles, ArrowRight, Hexagon, ChevronRight, Clock, Sun, Moon } from "lucide-react";
 
-export default function HomePage({ onStartChat, onStartImage }) {
+export default function HomePage({ onStartChat, onStartImage, theme, onThemeToggle }) {
   const [hoveredCard, setHoveredCard] = useState(null);
 
   const cardBase =
@@ -17,6 +17,22 @@ export default function HomePage({ onStartChat, onStartImage }) {
   return (
     <div className="relative z-10 flex items-center justify-center w-full h-full px-4 py-6 sm:py-8">
       <div className="w-full max-w-[680px] animate-message-in">
+        {/* Theme toggle — top-right corner */}
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={onThemeToggle}
+            className="size-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{ background: theme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)", border: "1px solid var(--border-subtle)" }}
+            title={theme === "dark" ? "切换到浅色模式" : "切换到深色模式"}
+          >
+            {theme === "dark" ? (
+              <Sun size={17} className="text-amber-400" />
+            ) : (
+              <Moon size={17} className="text-indigo-400" />
+            )}
+          </button>
+        </div>
+
         {/* Logo & Branding */}
         <div className="text-center mb-8 sm:mb-10">
           <div className="inline-flex items-center justify-center gap-2.5 sm:gap-3 mb-4 sm:mb-5">
