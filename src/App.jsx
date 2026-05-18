@@ -19,7 +19,6 @@ const INITIAL_COVER_STATE = {
     "16:9": { imageUrl: null, prompt: "", isGenerating: false },
   },
   gallery: [],      // saved works: [{ id, title, createdAt, "3:4":url, "16:9":url }]
-  currentStep: 1,
 };
 
 function App() {
