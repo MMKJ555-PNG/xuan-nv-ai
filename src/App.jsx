@@ -148,12 +148,10 @@ function App() {
 
       {/* Content: HomePage when no active chat, otherwise sidebar+chat layout */}
       {!activeChat ? (
-        <div className="relative z-10 flex w-full h-full">
-          <HomePage
-            onStartChat={() => handleNewChat("text")}
-            onStartImage={() => handleNewChat("image")}
-          />
-        </div>
+        <HomePage
+          onStartChat={() => handleNewChat("text")}
+          onStartImage={() => handleNewChat("image")}
+        />
       ) : (
         <div className="relative z-10 flex w-full h-full">
           <Sidebar

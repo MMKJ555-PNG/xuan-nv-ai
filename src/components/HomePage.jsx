@@ -15,7 +15,7 @@ export default function HomePage({ onStartChat, onStartImage }) {
     "hover:bg-white/[0.04] hover:border-zinc-500/20 hover:shadow-xl hover:shadow-zinc-500/5 hover:-translate-y-1";
 
   return (
-    <div className="flex items-center justify-center h-full px-4 py-6 sm:py-8">
+    <div className="relative z-10 flex items-center justify-center w-full h-full px-4 py-6 sm:py-8">
       <div className="w-full max-w-[680px] animate-message-in">
         {/* Logo & Branding */}
         <div className="text-center mb-8 sm:mb-10">
