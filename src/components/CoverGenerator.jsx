@@ -62,6 +62,7 @@ export default function CoverGenerator({ coverState, onCoverStateChange, apiUrl,
   const [customModel, setCustomModel] = useState(coverState.coverModel || "");
   const [galleryPreview, setGalleryPreview] = useState(null);
   const [savedMsg, setSavedMsg] = useState("");
+  const [view, setView] = useState("create"); // "create" | "gallery"
 
   const referenceImage = coverState?.referenceImage || null;
   const title = coverState?.title || "";
@@ -228,7 +229,26 @@ export default function CoverGenerator({ coverState, onCoverStateChange, apiUrl,
             <div className="relative shrink-0">
               <Hexagon size={22} className="text-violet-400" strokeWidth={1.5} fill="currentColor" fillOpacity={0.1} />
             </div>
-            <span className="text-sm font-bold tracking-tight text-gradient">短视频封面生成</span>
+            <span className="text-sm font-bold tracking-tight text-gradient">短视频封面</span>
+          </div>
+
+          {/* View toggle: 创作 / 作品库 */}
+          <div className="flex dark:bg-white/[0.05] bg-zinc-100 rounded-xl p-0.5 border-[var(--border-subtle)] border ml-2">
+            <button
+              onClick={() => setView("create")}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 ${view === "create" ? "bg-violet-500/15 text-violet-600 dark:text-violet-400 shadow-sm" : "dark:text-zinc-500 text-zinc-500 dark:hover:text-zinc-300 hover:text-zinc-700"}`}
+            >
+              <Sparkles size={12} className="inline mr-1" />创作
+            </button>
+            <button
+              onClick={() => setView("gallery")}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all duration-200 ${view === "gallery" ? "bg-violet-500/15 text-violet-600 dark:text-violet-400 shadow-sm" : "dark:text-zinc-500 text-zinc-500 dark:hover:text-zinc-300 hover:text-zinc-700"}`}
+            >
+              <PackageOpen size={12} className="inline mr-1" />作品库
+              {gallery.length > 0 && (
+                <span className="ml-1 text-[9px] opacity-70">({gallery.length})</span>
+              )}
+            </button>
           </div>
         </div>
         <div className="relative z-10">
@@ -245,6 +265,7 @@ export default function CoverGenerator({ coverState, onCoverStateChange, apiUrl,
       {/* Main content */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
         <div className="max-w-[960px] mx-auto px-4 py-6">
+          {view === "create" && (<>
           {/* --- Input Section --- */}
           <div className="glass-surface rounded-2xl p-5 sm:p-6 mb-6 border border-[var(--border-subtle)]">
             <h2 className="text-base font-semibold dark:text-zinc-200 text-zinc-800 mb-4 flex items-center gap-2">
@@ -375,17 +396,10 @@ export default function CoverGenerator({ coverState, onCoverStateChange, apiUrl,
               </div>
             </div>
           )}
+          </>)}
 
-          {/* --- Gallery (history area) --- */}
+          {view === "gallery" && (
           <div>
-            <h2 className="text-base font-semibold dark:text-zinc-200 text-zinc-800 mb-4 flex items-center gap-2">
-              <PackageOpen size={18} className="text-violet-400" />
-              作品库
-              {gallery.length > 0 && (
-                <span className="text-xs dark:text-zinc-500 text-zinc-400 font-normal">({gallery.length} 件)</span>
-              )}
-            </h2>
-
             {gallery.length === 0 ? (
               <div className="glass-surface rounded-2xl p-10 text-center border border-[var(--border-subtle)]">
                 <PackageOpen size={40} className="dark:text-zinc-600 text-zinc-300 mx-auto mb-3" />
@@ -429,6 +443,7 @@ export default function CoverGenerator({ coverState, onCoverStateChange, apiUrl,
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
