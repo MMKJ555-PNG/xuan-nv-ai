@@ -49,6 +49,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
   const [managerOpen, setManagerOpen] = useState(false);
   const [newModelId, setNewModelId] = useState("");
   const [newModelName, setNewModelName] = useState("");
+  const abortControllerRef = useRef(null);
   const bottomRef = useRef(null);
   const streamingRef = useRef("");
   const streamingStateRef = useRef(false);
@@ -91,6 +92,10 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
 
   const timeStr = () => new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
 
+  const handleStop = () => {
+    abortControllerRef.current?.abort();
+  };
+
   const handleSend = async (text, images = [], opts = {}) => {
     if (!activeModel || !apiUrl || !apiKey) return;
 
@@ -104,6 +109,9 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
     }
 
     setError("");
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     const userMsg = {
       id: Date.now(),
       role: "user",
@@ -142,12 +150,14 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
       const placeholderId = Date.now() + 1;
       onMessagesUpdate([...updated, { id: placeholderId, role: "assistant", content: "", time: timeStr(), ratio: ratio.value }]);
       try {
-        const data = await chatCompletion({ apiUrl, apiKey, model: activeModel, messages: apiMessages, ...extraParams });
+        const data = await chatCompletion({ apiUrl, apiKey, model: activeModel, messages: apiMessages, signal: controller.signal, ...extraParams });
         const content = data.choices?.[0]?.message?.content || "";
         onMessagesUpdate([...updated, { id: placeholderId, role: "assistant", content, time: timeStr(), ratio: ratio.value }]);
       } catch (e) {
-        setError(e.message);
-        onMessagesUpdate([...updated, { id: placeholderId, role: "assistant", content: `错误: ${e.message}`, time: timeStr(), ratio: ratio.value }]);
+        if (e.name !== "AbortError") {
+          setError(e.message);
+          onMessagesUpdate([...updated, { id: placeholderId, role: "assistant", content: `错误: ${e.message}`, time: timeStr(), ratio: ratio.value }]);
+        }
       } finally { setStreaming(false); }
     } else {
       setStreaming(true);
@@ -155,12 +165,14 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
       const assistantId = Date.now() + 1;
       onMessagesUpdate([...updated, { id: assistantId, role: "assistant", content: "", time: timeStr() }]);
       try {
-        await chatCompletionStream({ apiUrl, apiKey, model: activeModel, messages: apiMessages, ...extraParams,
+        await chatCompletionStream({ apiUrl, apiKey, model: activeModel, messages: apiMessages, signal: controller.signal, ...extraParams,
           onChunk: (chunk) => { streamingRef.current += chunk; onMessagesUpdate([...updated, { id: assistantId, role: "assistant", content: streamingRef.current, time: timeStr() }]); },
         });
       } catch (e) {
-        setError(e.message);
-        onMessagesUpdate([...updated, { id: assistantId, role: "assistant", content: streamingRef.current || `错误: ${e.message}`, time: timeStr() }]);
+        if (e.name !== "AbortError") {
+          setError(e.message);
+          onMessagesUpdate([...updated, { id: assistantId, role: "assistant", content: streamingRef.current || `错误: ${e.message}`, time: timeStr() }]);
+        }
       } finally { setStreaming(false); }
     }
   };
@@ -279,7 +291,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
                   </div>
                 </div>
               )}
-              <ChatInput onSend={handleSend} activeModel={activeModel} features={features} onFeaturesChange={onFeaturesChange} mode={mode} variant="hero" />
+              <ChatInput onSend={handleSend} activeModel={activeModel} features={features} onFeaturesChange={onFeaturesChange} mode={mode} variant="hero" streaming={streaming} onStop={handleStop} />
             </div>
           </div>
         ) : (
@@ -303,8 +315,10 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
           activeModel={activeModel}
           features={features}
           onFeaturesChange={onFeaturesChange}
+          onStop={handleStop}
           mode={mode}
           variant="compact"
+          streaming={streaming}
         />
       )}
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, ChevronDown, Sparkles, Zap, ImagePlus, X, Braces, Wrench, Brain, Video, Check } from "lucide-react";
+import { Send, ChevronDown, Sparkles, Zap, ImagePlus, X, Braces, Wrench, Brain, Video, Check, Square } from "lucide-react";
 
 const FEATURES = [
   { key: "structuredOutput", label: "结构化输出", icon: Braces, desc: "JSON Schema 约束输出" },
@@ -7,7 +7,7 @@ const FEATURES = [
   { key: "thinking", label: "深度思考", icon: Brain, desc: "Claude extended thinking" },
 ];
 
-export default function ChatInput({ onSend, activeModel, variant = "compact", features, onFeaturesChange, mode = "text" }) {
+export default function ChatInput({ onSend, activeModel, variant = "compact", features, onFeaturesChange, mode = "text", streaming, onStop }) {
   const [input, setInput] = useState("");
   const [featureOpen, setFeatureOpen] = useState(false);
   const [videoFile, setVideoFile] = useState(null);
@@ -40,7 +40,7 @@ export default function ChatInput({ onSend, activeModel, variant = "compact", fe
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (streaming) { onStop?.(); } else { handleSend(); } }
   };
 
   const handleImageUpload = (e) => {
@@ -200,9 +200,15 @@ export default function ChatInput({ onSend, activeModel, variant = "compact", fe
                   ><ImagePlus size={isHero ? 18 : 16} className="dark:text-zinc-400 text-zinc-500" /></button>
                 </>
               )}
-              <button onClick={handleSend} disabled={!hasContent || !activeModel}
-                className={`rounded-xl flex items-center justify-center transition-all duration-200 ${isHero ? "size-10" : "size-9"} ${hasContent && activeModel ? "bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-600/25 animate-pulse-glow" : "dark:bg-white/[0.06] bg-zinc-100 cursor-not-allowed"}`}
-              >{hasContent && activeModel ? <Zap size={isHero ? 18 : 16} className="text-white" /> : <Send size={isHero ? 17 : 15} className="dark:text-zinc-500 text-zinc-400" />}</button>
+              {streaming ? (
+                <button onClick={onStop}
+                  className={`rounded-xl flex items-center justify-center transition-all duration-200 ${isHero ? "size-10" : "size-9"} bg-red-500 hover:bg-red-400 shadow-lg shadow-red-500/25`}
+                ><Square size={isHero ? 16 : 14} className="text-white" fill="currentColor" /></button>
+              ) : (
+                <button onClick={handleSend} disabled={!hasContent || !activeModel}
+                  className={`rounded-xl flex items-center justify-center transition-all duration-200 ${isHero ? "size-10" : "size-9"} ${hasContent && activeModel ? "bg-violet-600 hover:bg-violet-500 shadow-lg shadow-violet-600/25 animate-pulse-glow" : "dark:bg-white/[0.06] bg-zinc-100 cursor-not-allowed"}`}
+                >{hasContent && activeModel ? <Zap size={isHero ? 18 : 16} className="text-white" /> : <Send size={isHero ? 17 : 15} className="dark:text-zinc-500 text-zinc-400" />}</button>
+              )}
             </div>
           </div>
         </div>
