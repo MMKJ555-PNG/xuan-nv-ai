@@ -2,24 +2,11 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import ChatArea from "./components/ChatArea";
 import HomePage from "./components/HomePage";
-import CoverGenerator from "./components/CoverGenerator";
 import useLocalStorage from "./hooks/useLocalStorage";
 import { chatCompletion } from "./services/api";
 
 const DEFAULT_TEXT_FEATURES = { structuredOutput: false, toolCalling: false, thinking: false };
 const DEFAULT_IMAGE_FEATURES = {};
-
-const INITIAL_COVER_STATE = {
-  referenceImage: null,
-  title: "",
-  requirements: "",
-  coverModel: "",   // independent model for cover generation
-  covers: {
-    "3:4": { imageUrl: null, prompt: "", isGenerating: false },
-    "16:9": { imageUrl: null, prompt: "", isGenerating: false },
-  },
-  gallery: [],      // saved works: [{ id, title, createdAt, "3:4":url, "16:9":url }]
-};
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -48,11 +35,8 @@ function App() {
   const [chats, setChats] = useLocalStorage("xuannv_chats", []);
   const [activeChat, setActiveChat] = useLocalStorage("xuannv_active_chat", null);
 
-  // Feature routing: "home" | "chat" | "cover"
+  // Feature routing: "home" | "chat"
   const [activeFeature, setActiveFeature] = useLocalStorage("xuannv_active_feature", "home");
-  const [coverStateRaw, setCoverState] = useLocalStorage("xuannv_cover_state", INITIAL_COVER_STATE);
-  // Normalize: merge with defaults so missing fields from older versions don't crash
-  const coverState = { ...INITIAL_COVER_STATE, ...coverStateRaw };
 
   // Per-mode derived values
   const activeModel = mode === "image" ? imageModel : textModel;
@@ -218,7 +202,6 @@ function App() {
         <HomePage
           onStartChat={() => handleNewChat("text")}
           onStartImage={() => handleNewChat("image")}
-          onStartCover={() => setActiveFeature("cover")}
           theme={theme}
           onThemeToggle={themeToggle}
           apiUrl={apiUrl}
@@ -265,18 +248,6 @@ function App() {
         </div>
       )}
 
-      {activeFeature === "cover" && (
-        <CoverGenerator
-          coverState={coverState}
-          onCoverStateChange={setCoverState}
-          apiUrl={apiUrl}
-          apiKey={apiKey}
-          models={models}
-          theme={theme}
-          onThemeToggle={themeToggle}
-          onBackToHome={handleGoHome}
-        />
-      )}
     </div>
   );
 }

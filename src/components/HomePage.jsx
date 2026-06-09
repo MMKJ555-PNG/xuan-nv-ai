@@ -1,15 +1,15 @@
 import { useState, useRef } from "react";
-import { MessageSquare, Sparkles, ArrowRight, Hexagon, ChevronRight, Clock, Sun, Moon, Settings, Download, Upload, Film } from "lucide-react";
+import { MessageSquare, Sparkles, ArrowRight, Hexagon, ChevronRight, Clock, Sun, Moon, Settings, Download, Upload } from "lucide-react";
 
 const STORAGE_KEYS = [
   "xuannv_api_url", "xuannv_api_key", "xuannv_models",
   "xuannv_text_model", "xuannv_image_model",
   "xuannv_mode", "xuannv_text_features", "xuannv_image_features",
   "xuannv_chats", "xuannv_active_chat", "xuannv_theme",
-  "xuannv_active_feature", "xuannv_cover_state",
+  "xuannv_active_feature",
 ];
 
-export default function HomePage({ onStartChat, onStartImage, onStartCover, theme, onThemeToggle, apiUrl, apiKey, onConfigSave }) {
+export default function HomePage({ onStartChat, onStartImage, theme, onThemeToggle, apiUrl, apiKey, onConfigSave }) {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [urlInput, setUrlInput] = useState(apiUrl);
@@ -124,7 +124,7 @@ export default function HomePage({ onStartChat, onStartImage, onStartCover, them
           </div>
 
           {/* Feature Cards — 3 cards in responsive grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 px-1 sm:px-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-5 px-1 sm:px-0">
             {/* Card 1 — 智能对话 */}
             <button
               onClick={onStartChat}
@@ -155,37 +155,7 @@ export default function HomePage({ onStartChat, onStartImage, onStartCover, them
               />
             </button>
 
-            {/* Card 2 — 短视频封面 */}
-            <button
-              onClick={onStartCover}
-              onMouseEnter={() => setHoveredCard("cover")}
-              onMouseLeave={() => setHoveredCard(null)}
-              className={`${cardBase} ${hoveredCard === "cover" ? cardHoverActive + " -translate-y-1" : ""}`}
-            >
-              <div
-                className="absolute inset-0 rounded-2xl bg-violet-500/5 blur-xl transition-opacity duration-300 pointer-events-none"
-                style={{ opacity: hoveredCard === "cover" ? 1 : 0 }}
-              />
-              <div className="relative z-10 flex flex-col h-full">
-                <div className="size-10 sm:size-12 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-105 transition-transform duration-300">
-                  <Film size={20} className="sm:size-[22px] text-violet-400" strokeWidth={1.5} />
-                </div>
-                <h3 className="text-sm sm:text-base font-semibold dark:text-zinc-200 text-zinc-800 mb-1.5 sm:mb-2">短视频封面</h3>
-                <p className="text-xs sm:text-sm dark:text-zinc-500 text-zinc-600 leading-relaxed mb-4 sm:mb-5 flex-1">
-                  AI 生成短视频封面图，支持 3:4 和 16:9 双比例、批量集数处理与文字编辑
-                </p>
-                <div className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-violet-400 group-hover:text-violet-300 transition-colors">
-                  <span>开始生成</span>
-                  <ArrowRight size={14} className="sm:size-[15px] group-hover:translate-x-1 transition-transform duration-200" />
-                </div>
-              </div>
-              <div
-                className="absolute bottom-0 left-3 right-3 sm:left-4 sm:right-4 h-px bg-gradient-to-r from-transparent via-violet-400/30 to-transparent transition-opacity duration-300"
-                style={{ opacity: hoveredCard === "cover" ? 1 : 0 }}
-              />
-            </button>
-
-            {/* Card 3 — 更多功能（即将推出） */}
+            {/* Card 2 — 更多功能（即将推出） */}
             <button
               onMouseEnter={() => setHoveredCard("upcoming")}
               onMouseLeave={() => setHoveredCard(null)}
