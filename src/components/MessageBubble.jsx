@@ -188,6 +188,13 @@ export default function MessageBubble({ message, isStreaming }) {
           style={{ background: "var(--surface-glass)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", border: "1px solid var(--border-subtle)", boxShadow: "0 4px 24px rgba(0,0,0,0.08)" }}
         >
           <div className="absolute inset-0 rounded-2xl rounded-bl-md bg-gradient-to-br from-white/[0.02] to-transparent pointer-events-none" />
+          {message.images?.length > 0 && (
+            <div className="relative mb-3 space-y-2">
+              {message.images.map((img, i) => (
+                <ImageBlock key={i} src={img} ratio={message.ratio} />
+              ))}
+            </div>
+          )}
           <div className="relative">{message.content ? renderContent(message.content, message.ratio) : isStreaming ? <CanvasPlaceholder ratio={message.ratio} /> : <span className="dark:text-zinc-500 text-zinc-500 italic text-sm">...</span>}</div>
         </div>
         <div className="flex items-center gap-1 mt-1.5 px-1">

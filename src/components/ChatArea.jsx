@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { MessageCircle, AlertTriangle, Image, Sparkles, MessageSquare, ChevronDown, Plus, Trash2, Video } from "lucide-react";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
-import { chatCompletionStream, chatCompletion } from "../services/api";
+import { chatCompletionStream, imageGeneration } from "../services/api";
 
 const RATIOS = [
   // 横向 / 横屏比例
@@ -23,7 +23,7 @@ const RATIOS = [
   { label: "9:21", value: "9/21" },
 ];
 
-function toApiMessages(messages, opts = {}) {
+function toApiMessages(messages) {
   return messages.map((msg) => {
     if (msg.role === "user") {
       const parts = [];
@@ -40,7 +40,7 @@ function toApiMessages(messages, opts = {}) {
   });
 }
 
-export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUrl, apiKey, activeModel, models, onMessagesUpdate, onModelAdd, onModelDelete, onActiveModelChange, onNewChat, onModeChange }) {
+export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUrl, apiKey, activeModel, models, onMessagesUpdate, onModelAdd, onModelDelete, onActiveModelChange, onModeChange }) {
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState("");
   const [ratioMenuOpen, setRatioMenuOpen] = useState(false);
@@ -124,8 +124,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
     const updated = [...existing, userMsg];
     onMessagesUpdate(updated);
 
-    const apiOptions = { videoUrl: opts.videoUrl, features };
-    const apiMessages = toApiMessages(updated, apiOptions);
+    const apiMessages = toApiMessages(updated);
 
     // Build extra request params from features
     const extraParams = {};
@@ -138,21 +137,24 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
     }
 
     if (mode === "image") {
-      const ratioPrompt = `\n[系统指令：请生成宽高比为 ${ratio.label}（${ratio.value}）的图像]`;
-      const lastMsg = apiMessages[apiMessages.length - 1];
-      if (typeof lastMsg.content === "string") {
-        lastMsg.content += ratioPrompt;
-      } else {
-        lastMsg.content[0].text += ratioPrompt;
-      }
+      // Map ratio to image generation size (DALL-E compatible: 1024x1024 / 1792x1024 / 1024x1792)
+      const ratioValue = ratio.value;
+      let size = "1024x1024";
+      const [rw, rh] = ratioValue.split("/").map(Number);
+      if (rw > rh) size = "1792x1024";
+      else if (rh > rw) size = "1024x1792";
+
+      const prompt = text;
 
       setStreaming(true);
       const placeholderId = Date.now() + 1;
       onMessagesUpdate([...updated, { id: placeholderId, role: "assistant", content: "", time: timeStr(), ratio: ratio.value }]);
       try {
-        const data = await chatCompletion({ apiUrl, apiKey, model: activeModel, messages: apiMessages, signal: controller.signal, ...extraParams });
-        const content = data.choices?.[0]?.message?.content || "";
-        onMessagesUpdate([...updated, { id: placeholderId, role: "assistant", content, time: timeStr(), ratio: ratio.value }]);
+        const data = await imageGeneration({ apiUrl, apiKey, model: activeModel, prompt, size, n: 1, signal: controller.signal });
+        const imageUrl = data.data?.[0]?.url || "";
+        const revisedPrompt = data.data?.[0]?.revised_prompt || "";
+        const resultContent = revisedPrompt || prompt;
+        onMessagesUpdate([...updated, { id: placeholderId, role: "assistant", content: resultContent, images: imageUrl ? [imageUrl] : [], time: timeStr(), ratio: ratio.value }]);
       } catch (e) {
         if (e.name !== "AbortError") {
           setError(e.message);

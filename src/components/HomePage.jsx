@@ -9,7 +9,7 @@ const STORAGE_KEYS = [
   "xuannv_active_feature",
 ];
 
-export default function HomePage({ onStartChat, onStartImage, theme, onThemeToggle, apiUrl, apiKey, onConfigSave }) {
+export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, apiKey, onConfigSave }) {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [urlInput, setUrlInput] = useState(apiUrl);

@@ -19,6 +19,23 @@ export async function chatCompletion({ apiUrl, apiKey, model, messages, signal, 
   return res.json();
 }
 
+export async function imageGeneration({ apiUrl, apiKey, model, prompt, size, n, signal }) {
+  const res = await fetch(`${normalizeUrl(apiUrl)}/v1/images/generations`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model, prompt, n: n || 1, size: size || "1024x1024" }),
+    signal,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function chatCompletionStream({ apiUrl, apiKey, model, messages, onChunk, signal, ...extra }) {
   const res = await fetch(`${normalizeUrl(apiUrl)}/v1/chat/completions`, {
     method: "POST",
