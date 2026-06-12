@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { MessageCircle, AlertTriangle, Image, Sparkles, MessageSquare, ChevronDown, Plus, Trash2, Video } from "lucide-react";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
@@ -150,7 +150,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
       const placeholderId = Date.now() + 1;
       onMessagesUpdate([...updated, { id: placeholderId, role: "assistant", content: "", time: timeStr(), ratio: ratio.value }]);
       try {
-        const data = await imageGeneration({ apiUrl, apiKey, model: activeModel, prompt, size, n: 1, signal: controller.signal });
+        const data = await imageGeneration({ apiUrl, apiKey, model: activeModel, prompt, images, size, n: 1, signal: controller.signal });
         const imageUrl = data.data?.[0]?.url || "";
         const revisedPrompt = data.data?.[0]?.revised_prompt || "";
         const resultContent = revisedPrompt || prompt;
@@ -364,3 +364,4 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
     </div>
   );
 }
+

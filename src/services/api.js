@@ -1,4 +1,4 @@
-function normalizeUrl(apiUrl) {
+﻿function normalizeUrl(apiUrl) {
   return apiUrl.replace(/\/v1\/?$/, "");
 }
 
@@ -19,14 +19,14 @@ export async function chatCompletion({ apiUrl, apiKey, model, messages, signal, 
   return res.json();
 }
 
-export async function imageGeneration({ apiUrl, apiKey, model, prompt, size, n, signal }) {
+export async function imageGeneration({ apiUrl, apiKey, model, prompt, images, size, n, signal }) {
   const res = await fetch(`${normalizeUrl(apiUrl)}/v1/images/generations`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, prompt, n: n || 1, size: size || "1024x1024" }),
+    body: JSON.stringify({ model, prompt, n: n || 1, size: size || "1024x1024", ...(images?.length > 0 ? { images } : {}) }),
     signal,
   });
   if (!res.ok) {
@@ -93,3 +93,4 @@ export async function chatCompletionStream({ apiUrl, apiKey, model, messages, on
   }
   flush();
 }
+
