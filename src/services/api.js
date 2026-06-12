@@ -19,14 +19,14 @@ export async function chatCompletion({ apiUrl, apiKey, model, messages, signal, 
   return res.json();
 }
 
-export async function imageGeneration({ apiUrl, apiKey, model, prompt, images, size, n, signal }) {
+export async function imageGeneration({ apiUrl, apiKey, model, prompt, image, size, n, signal }) {
   const res = await fetch(`${normalizeUrl(apiUrl)}/v1/images/generations`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({ model, prompt, n: n || 1, size: size || "1024x1024", ...(images?.length > 0 ? { images } : {}) }),
+    body: JSON.stringify({ model, prompt, n: n || 1, size: size || "1024x1024", ...(image ? { image } : {}) }),
     signal,
   });
   if (!res.ok) {
@@ -93,4 +93,5 @@ export async function chatCompletionStream({ apiUrl, apiKey, model, messages, on
   }
   flush();
 }
+
 
