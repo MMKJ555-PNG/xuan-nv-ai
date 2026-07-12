@@ -10,7 +10,7 @@ const STORAGE_KEYS = [
   "xuannv_active_feature",
 ];
 
-export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, apiKey, onConfigSave, onModelsFetched }) {
+export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, apiKey, onConfigSave, onModelsFetched, onRemoteModelsConfirmed }) {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [urlInput, setUrlInput] = useState(apiUrl);
@@ -18,6 +18,9 @@ export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, ap
   const [showKey, setShowKey] = useState(false);
   const [configMsg, setConfigMsg] = useState("");
   const [fetchingModels, setFetchingModels] = useState(false);
+  const [modelPickerOpen, setModelPickerOpen] = useState(false);
+  const [modelCandidates, setModelCandidates] = useState([]);
+  const [selectedModelIds, setSelectedModelIds] = useState(new Set());
   const fetchControllerRef = useRef(null);
   const fileInputRef = useRef(null);
   const [importMsg, setImportMsg] = useState("");
@@ -41,14 +44,38 @@ export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, ap
       const normalizedUrl = normalizeApiBaseUrl(urlInput);
       if (!keyInput.trim()) throw new Error("请输入 API 密钥");
       const fetched = await listModels({ apiUrl: normalizedUrl, apiKey: keyInput.trim(), signal: controller.signal });
-      onModelsFetched(fetched);
+      onModelsFetched();
+      setModelCandidates(fetched);
+      setSelectedModelIds(new Set());
+      setModelPickerOpen(true);
       setUrlInput(normalizedUrl);
-      setConfigMsg(`成功拉取 ${fetched.length} 个模型，已合并到模型列表`);
+      setConfigMsg(`成功拉取 ${fetched.length} 个模型，请选择需要使用的模型`);
     } catch (error) {
       if (error.name !== "AbortError") setConfigMsg(`拉取失败：${error.message}`);
     } finally {
       if (fetchControllerRef.current === controller) setFetchingModels(false);
     }
+  };
+
+  const toggleModel = (modelId) => {
+    setSelectedModelIds((current) => {
+      const next = new Set(current);
+      if (next.has(modelId)) next.delete(modelId);
+      else next.add(modelId);
+      return next;
+    });
+  };
+
+  const toggleAllModels = () => {
+    setSelectedModelIds((current) => current.size === modelCandidates.length
+      ? new Set()
+      : new Set(modelCandidates.map((model) => model.id)));
+  };
+
+  const confirmModels = () => {
+    onRemoteModelsConfirmed(modelCandidates, selectedModelIds);
+    setModelPickerOpen(false);
+    setConfigMsg(`已添加 ${selectedModelIds.size} 个模型到对话选择器`);
   };
 
   const handleConfigSave = () => {
@@ -267,7 +294,7 @@ export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, ap
               <RefreshCw size={15} className={fetchingModels ? "animate-spin" : ""} />
               {fetchingModels ? "正在拉取模型..." : "拉取模型"}
             </button>
-            {configMsg && <p className={`text-xs ${configMsg.includes("成功") ? "text-emerald-400" : "text-red-400"}`}>{configMsg}</p>}
+            {configMsg && <p className={`text-xs ${configMsg.includes("成功") || configMsg.includes("已添加") ? "text-emerald-400" : "text-red-400"}`}>{configMsg}</p>}
           </div>
           <div className="px-5 py-3 border-t border-[var(--border-subtle)]">
             <p className="text-[10px] dark:text-zinc-500 text-zinc-500 mb-2 uppercase tracking-wider font-medium">数据管理</p>
@@ -287,6 +314,42 @@ export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, ap
           <div className="px-5 py-3 dark:bg-white/[0.02] bg-zinc-50 border-t border-[var(--border-subtle)] flex justify-end gap-2">
             <button onClick={closeConfig} className="px-4 py-2 rounded-lg text-sm dark:text-zinc-400 text-zinc-500 dark:hover:text-zinc-200 hover:text-zinc-700 dark:hover:bg-white/[0.04] hover:bg-zinc-100 transition-colors">取消</button>
             <button onClick={handleConfigSave} className="px-5 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors">保存</button>
+          </div>
+        </div>
+      </>)}
+
+      {modelPickerOpen && (<>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60]" onClick={() => setModelPickerOpen(false)} />
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-[520px] max-w-[92vw] max-h-[82vh] flex flex-col dark:bg-zinc-900/98 bg-white/98 backdrop-blur-xl rounded-2xl border-[var(--border-default)] border shadow-2xl animate-message-in overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold dark:text-zinc-200 text-zinc-800">选择对话模型</h2>
+              <p className="text-[11px] dark:text-zinc-500 text-zinc-500 mt-1">上次拉取的远程模型已清空，仅确认选中的模型会显示。</p>
+            </div>
+            <span className="text-xs text-violet-400 shrink-0">已选 {selectedModelIds.size}/{modelCandidates.length}</span>
+          </div>
+          <div className="px-5 py-3 border-b border-[var(--border-subtle)] flex justify-end">
+            <button type="button" onClick={toggleAllModels} className="text-xs text-violet-400 hover:text-violet-300 transition-colors">
+              {selectedModelIds.size === modelCandidates.length ? "取消全选" : "全选"}
+            </button>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 space-y-1">
+            {modelCandidates.map((model) => {
+              const selected = selectedModelIds.has(model.id);
+              return (
+                <label key={model.id} title={model.id} className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition-colors ${selected ? "border-violet-500/35 bg-violet-500/10" : "border-transparent dark:hover:bg-white/[0.04] hover:bg-zinc-100"}`}>
+                  <input type="checkbox" checked={selected} onChange={() => toggleModel(model.id)} className="size-4 accent-violet-600 shrink-0" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm dark:text-zinc-200 text-zinc-800 truncate">{model.name}</span>
+                    <span className="block text-[11px] dark:text-zinc-500 text-zinc-500 truncate">{model.id}{model.ownedBy ? ` · ${model.ownedBy}` : ""}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <div className="px-5 py-3 dark:bg-white/[0.02] bg-zinc-50 border-t border-[var(--border-subtle)] flex justify-end gap-2">
+            <button onClick={() => setModelPickerOpen(false)} className="px-4 py-2 rounded-lg text-sm dark:text-zinc-400 text-zinc-500 dark:hover:text-zinc-200 hover:text-zinc-700 dark:hover:bg-white/[0.04] hover:bg-zinc-100 transition-colors">取消</button>
+            <button onClick={confirmModels} className="px-5 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors">确认选择</button>
           </div>
         </div>
       </>)}

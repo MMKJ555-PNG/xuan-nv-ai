@@ -245,7 +245,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
                   {models.length === 0 ? (
                     <div className="px-4 py-6 text-center">
                       <Sparkles size={20} className="text-zinc-400 mx-auto mb-2" />
-                      <p className="text-xs dark:text-zinc-500 text-zinc-400">暂无自定义模型</p>
+                      <p className="text-xs dark:text-zinc-500 text-zinc-400">暂无可用模型</p>
                     </div>
                   ) : (models.map((m) => (
                     <button key={m.id}
@@ -334,7 +334,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
             </div>
             <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
               {models.length === 0 ? (
-                <p className="text-xs dark:text-zinc-500 text-zinc-500 text-center py-8">暂无自定义模型</p>
+                <p className="text-xs dark:text-zinc-500 text-zinc-500 text-center py-8">暂无可用模型</p>
               ) : (models.map((m) => (
                 <div key={m.id} className="flex items-center gap-3 px-5 py-3 border-b border-[var(--border-subtle)] dark:hover:bg-white/[0.02] hover:bg-zinc-50">
                   <div className="flex-1 min-w-0"><p className="text-sm dark:text-zinc-200 text-zinc-700 truncate">{m.name}</p><p className="text-[10px] dark:text-zinc-500 text-zinc-400 truncate">{m.id} · {m.source === "remote" ? "API 拉取" : "手动添加"}</p></div>

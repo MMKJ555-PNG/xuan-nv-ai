@@ -4,6 +4,7 @@ import ChatArea from "./components/ChatArea";
 import HomePage from "./components/HomePage";
 import useLocalStorage from "./hooks/useLocalStorage";
 import { chatCompletion, normalizeApiBaseUrl } from "./services/api";
+import { clearRemoteModels, reconcileActiveModels, selectRemoteModels } from "./services/models";
 
 const DEFAULT_TEXT_FEATURES = { structuredOutput: false, toolCalling: false, thinking: false };
 const DEFAULT_IMAGE_FEATURES = {};
@@ -38,24 +39,6 @@ function omitLocalMedia(chats) {
 
 function createChatId() {
   return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function mergeModels(existing, incoming) {
-  const merged = existing.filter((model) => model && typeof model.id === "string").map((model) => ({ ...model, id: model.id.trim() }));
-  const byId = new Map(merged.map((model) => [model.id, model]));
-  for (const model of incoming) {
-    const current = byId.get(model.id);
-    if (current) {
-      Object.assign(current, {
-        ownedBy: current.ownedBy || model.ownedBy,
-        source: current.source || model.source,
-      });
-    } else {
-      merged.push(model);
-      byId.set(model.id, model);
-    }
-  }
-  return merged;
 }
 
 function App() {
@@ -213,9 +196,22 @@ function App() {
     [textModel, imageModel, setModels, setTextModel, setImageModel]
   );
 
-  const handleModelsFetched = useCallback((incomingModels) => {
-    setModels((prev) => mergeModels(prev, incomingModels));
-  }, [setModels]);
+  const applyModelSelection = useCallback((nextModels) => {
+    setModels(nextModels);
+    const active = reconcileActiveModels(nextModels, textModel, imageModel);
+    if (active.textModel !== textModel) setTextModel(active.textModel);
+    if (active.imageModel !== imageModel) setImageModel(active.imageModel);
+  }, [textModel, imageModel, setModels, setTextModel, setImageModel]);
+
+  const handleModelsFetched = useCallback(() => {
+    const nextModels = clearRemoteModels(models);
+    applyModelSelection(nextModels);
+  }, [models, applyModelSelection]);
+
+  const handleRemoteModelsConfirmed = useCallback((candidates, selectedIds) => {
+    const nextModels = selectRemoteModels(models, candidates, selectedIds);
+    applyModelSelection(nextModels);
+  }, [models, applyModelSelection]);
 
   const handleConfigSave = useCallback((url, key) => {
     setApiUrl(normalizeApiBaseUrl(url));
@@ -286,6 +282,7 @@ function App() {
           apiKey={apiKey}
           onConfigSave={handleConfigSave}
           onModelsFetched={handleModelsFetched}
+          onRemoteModelsConfirmed={handleRemoteModelsConfirmed}
         />
       )}
 
