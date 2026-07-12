@@ -1,5 +1,6 @@
-import { useState, useRef } from "react";
-import { MessageSquare, Sparkles, ArrowRight, Hexagon, ChevronRight, Clock, Sun, Moon, Settings, Download, Upload } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { MessageSquare, Sparkles, ArrowRight, Hexagon, ChevronRight, Clock, Sun, Moon, Settings, Download, Upload, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { listModels, normalizeApiBaseUrl } from "../services/api";
 
 const STORAGE_KEYS = [
   "xuannv_api_url", "xuannv_api_key", "xuannv_models",
@@ -9,13 +10,57 @@ const STORAGE_KEYS = [
   "xuannv_active_feature",
 ];
 
-export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, apiKey, onConfigSave }) {
+export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, apiKey, onConfigSave, onModelsFetched }) {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [urlInput, setUrlInput] = useState(apiUrl);
   const [keyInput, setKeyInput] = useState(apiKey);
+  const [showKey, setShowKey] = useState(false);
+  const [configMsg, setConfigMsg] = useState("");
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const fetchControllerRef = useRef(null);
   const fileInputRef = useRef(null);
   const [importMsg, setImportMsg] = useState("");
+
+  useEffect(() => () => fetchControllerRef.current?.abort(), []);
+
+  const closeConfig = () => {
+    fetchControllerRef.current?.abort();
+    setFetchingModels(false);
+    setShowKey(false);
+    setConfigOpen(false);
+  };
+
+  const handleFetchModels = async () => {
+    setConfigMsg("");
+    fetchControllerRef.current?.abort();
+    const controller = new AbortController();
+    fetchControllerRef.current = controller;
+    setFetchingModels(true);
+    try {
+      const normalizedUrl = normalizeApiBaseUrl(urlInput);
+      if (!keyInput.trim()) throw new Error("请输入 API 密钥");
+      const fetched = await listModels({ apiUrl: normalizedUrl, apiKey: keyInput.trim(), signal: controller.signal });
+      onModelsFetched(fetched);
+      setUrlInput(normalizedUrl);
+      setConfigMsg(`成功拉取 ${fetched.length} 个模型，已合并到模型列表`);
+    } catch (error) {
+      if (error.name !== "AbortError") setConfigMsg(`拉取失败：${error.message}`);
+    } finally {
+      if (fetchControllerRef.current === controller) setFetchingModels(false);
+    }
+  };
+
+  const handleConfigSave = () => {
+    try {
+      const normalizedUrl = normalizeApiBaseUrl(urlInput);
+      if (!keyInput.trim()) throw new Error("请输入 API 密钥");
+      onConfigSave(normalizedUrl, keyInput);
+      closeConfig();
+    } catch (error) {
+      setConfigMsg(error.message);
+    }
+  };
 
   const handleExport = () => {
     const data = {};
@@ -77,7 +122,7 @@ export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, ap
           {/* Top-right buttons: Settings + Theme */}
           <div className="flex justify-end gap-2 mb-2">
             <button
-              onClick={() => { setUrlInput(apiUrl); setKeyInput(apiKey); setConfigOpen(true); }}
+              onClick={() => { setUrlInput(apiUrl); setKeyInput(apiKey); setConfigMsg(""); setShowKey(false); setConfigOpen(true); }}
               className="size-9 rounded-xl flex items-center justify-center transition-all duration-200 hover:scale-105 active:scale-95"
               style={{ background: theme === "dark" ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.04)", border: "1px solid var(--border-subtle)" }}
               title="系统配置"
@@ -199,16 +244,30 @@ export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, ap
 
       {/* Config Modal */}
       {configOpen && (<>
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={() => setConfigOpen(false)} />
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40" onClick={closeConfig} />
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[420px] max-w-[90vw] dark:bg-zinc-900/95 bg-white/95 backdrop-blur-xl rounded-2xl border-[var(--border-default)] border shadow-2xl animate-message-in overflow-hidden">
           <div className="px-5 py-4 border-b border-[var(--border-subtle)]"><span className="text-sm font-semibold dark:text-zinc-200 text-zinc-800">API 配置</span></div>
           <div className="p-5 space-y-4">
-            <div><label className="text-xs dark:text-zinc-500 text-zinc-500 mb-1.5 block">API 地址</label>
-              <input type="text" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="https://api.openai.com"
+            <div><label className="text-xs dark:text-zinc-500 text-zinc-500 mb-1.5 block">OpenAI 兼容 API 地址</label>
+              <input type="text" value={urlInput} onChange={(e) => { setUrlInput(e.target.value); setConfigMsg(""); }} placeholder="https://api.openai.com 或 https://host/v1"
                 className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2.5 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-400 outline-none focus:border-violet-500/40 transition-colors" /></div>
             <div><label className="text-xs dark:text-zinc-500 text-zinc-500 mb-1.5 block">API 密钥</label>
-              <input type="password" value={keyInput} onChange={(e) => setKeyInput(e.target.value)} placeholder="sk-..."
-                className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg px-3 py-2.5 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-400 outline-none focus:border-violet-500/40 transition-colors" /></div>
+              <div className="relative">
+                <input type={showKey ? "text" : "password"} value={keyInput} onChange={(e) => { setKeyInput(e.target.value); setConfigMsg(""); }} placeholder="sk-..."
+                  className="w-full dark:bg-white/[0.05] bg-zinc-100 border-[var(--border-default)] border rounded-lg pl-3 pr-10 py-2.5 text-sm dark:text-white text-zinc-800 dark:placeholder-zinc-500 placeholder-zinc-400 outline-none focus:border-violet-500/40 transition-colors" />
+                <button type="button" onClick={() => setShowKey((shown) => !shown)} title={showKey ? "隐藏密钥" : "显示密钥"}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 size-7 flex items-center justify-center dark:text-zinc-500 text-zinc-400 hover:text-violet-400">
+                  {showKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+              </div>
+            </div>
+            <p className="text-[10px] dark:text-zinc-600 text-zinc-500">配置仅保存在当前浏览器。模型列表通过 OpenAI 兼容的 GET /v1/models 获取。</p>
+            <button type="button" onClick={handleFetchModels} disabled={fetchingModels || !urlInput.trim() || !keyInput.trim()}
+              className="w-full flex items-center justify-center gap-2 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2.5 text-sm text-violet-300 hover:bg-violet-500/15 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <RefreshCw size={15} className={fetchingModels ? "animate-spin" : ""} />
+              {fetchingModels ? "正在拉取模型..." : "拉取模型"}
+            </button>
+            {configMsg && <p className={`text-xs ${configMsg.includes("成功") ? "text-emerald-400" : "text-red-400"}`}>{configMsg}</p>}
           </div>
           <div className="px-5 py-3 border-t border-[var(--border-subtle)]">
             <p className="text-[10px] dark:text-zinc-500 text-zinc-500 mb-2 uppercase tracking-wider font-medium">数据管理</p>
@@ -226,8 +285,8 @@ export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, ap
             )}
           </div>
           <div className="px-5 py-3 dark:bg-white/[0.02] bg-zinc-50 border-t border-[var(--border-subtle)] flex justify-end gap-2">
-            <button onClick={() => setConfigOpen(false)} className="px-4 py-2 rounded-lg text-sm dark:text-zinc-400 text-zinc-500 dark:hover:text-zinc-200 hover:text-zinc-700 dark:hover:bg-white/[0.04] hover:bg-zinc-100 transition-colors">取消</button>
-            <button onClick={() => { onConfigSave(urlInput, keyInput); setConfigOpen(false); }} className="px-5 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors">保存</button>
+            <button onClick={closeConfig} className="px-4 py-2 rounded-lg text-sm dark:text-zinc-400 text-zinc-500 dark:hover:text-zinc-200 hover:text-zinc-700 dark:hover:bg-white/[0.04] hover:bg-zinc-100 transition-colors">取消</button>
+            <button onClick={handleConfigSave} className="px-5 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors">保存</button>
           </div>
         </div>
       </>)}

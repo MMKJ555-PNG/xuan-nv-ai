@@ -181,8 +181,8 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
 
   const handleAddModel = () => {
     const trimmedId = newModelId.trim();
-    if (!trimmedId) return;
-    onModelAdd({ id: trimmedId, name: newModelName.trim() || trimmedId });
+    if (!trimmedId || models.some((model) => model.id.trim() === trimmedId)) return;
+    onModelAdd({ id: trimmedId, name: newModelName.trim() || trimmedId, source: "manual" });
     if (!activeModel) onActiveModelChange(trimmedId);
     setNewModelId(""); setNewModelName(""); setManagerOpen(false);
   };
@@ -257,7 +257,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
                         {activeModel === m.id && <span className="size-1.5 rounded-full bg-violet-400 shrink-0" />}
                         {m.id.toLowerCase().includes("gemini") && <span className="text-[9px] bg-amber-500/15 text-amber-400 px-1.5 py-0.5 rounded-full font-medium">Gemini</span>}
                       </div>
-                      <span className="text-[11px] dark:text-zinc-500 text-zinc-500 mt-0.5 block truncate">{m.id}</span>
+                      <span className="text-[11px] dark:text-zinc-500 text-zinc-500 mt-0.5 block truncate">{m.id} · {m.source === "remote" ? "API 拉取" : "手动添加"} · 能力未知</span>
                     </button>
                   )))}
                 </div>
@@ -337,7 +337,7 @@ export default function ChatArea({ chat, mode, features, onFeaturesChange, apiUr
                 <p className="text-xs dark:text-zinc-500 text-zinc-500 text-center py-8">暂无自定义模型</p>
               ) : (models.map((m) => (
                 <div key={m.id} className="flex items-center gap-3 px-5 py-3 border-b border-[var(--border-subtle)] dark:hover:bg-white/[0.02] hover:bg-zinc-50">
-                  <div className="flex-1 min-w-0"><p className="text-sm dark:text-zinc-200 text-zinc-700 truncate">{m.name}</p><p className="text-[10px] dark:text-zinc-500 text-zinc-400 truncate">{m.id}</p></div>
+                  <div className="flex-1 min-w-0"><p className="text-sm dark:text-zinc-200 text-zinc-700 truncate">{m.name}</p><p className="text-[10px] dark:text-zinc-500 text-zinc-400 truncate">{m.id} · {m.source === "remote" ? "API 拉取" : "手动添加"}</p></div>
                   <button onClick={() => onModelDelete(m.id)} className="size-7 rounded-lg flex items-center justify-center text-zinc-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"><Trash2 size={13} /></button>
                 </div>
               )))}

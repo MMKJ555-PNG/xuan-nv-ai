@@ -3,10 +3,60 @@ import Sidebar from "./components/Sidebar";
 import ChatArea from "./components/ChatArea";
 import HomePage from "./components/HomePage";
 import useLocalStorage from "./hooks/useLocalStorage";
-import { chatCompletion } from "./services/api";
+import { chatCompletion, normalizeApiBaseUrl } from "./services/api";
 
 const DEFAULT_TEXT_FEATURES = { structuredOutput: false, toolCalling: false, thinking: false };
 const DEFAULT_IMAGE_FEATURES = {};
+
+function normalizeChats(value) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((chat) => chat && typeof chat === "object" && chat.id != null).map((chat) => ({
+    ...chat,
+    title: typeof chat.title === "string" && chat.title ? chat.title : "新对话",
+    mode: chat.mode === "image" ? "image" : "text",
+    messages: Array.isArray(chat.messages) ? chat.messages : [],
+    createdAt: Number.isFinite(chat.createdAt) ? chat.createdAt : (Number.isFinite(chat.id) ? chat.id : 0),
+  }));
+}
+
+function omitLocalMedia(chats) {
+  const sanitize = (value, state) => {
+    if (typeof value === "string") return value.startsWith("data:") ? (state.omitted = true, "") : value;
+    if (Array.isArray(value)) return value.map((item) => sanitize(item, state)).filter((item) => item !== "");
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitize(item, state)]));
+  };
+  return chats.map((chat) => ({
+    ...chat,
+    messages: chat.messages.map((message) => {
+      const state = { omitted: false };
+      const next = sanitize(message, state);
+      return state.omitted ? { ...next, mediaPersistence: "omitted" } : next;
+    }),
+  }));
+}
+
+function createChatId() {
+  return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function mergeModels(existing, incoming) {
+  const merged = existing.filter((model) => model && typeof model.id === "string").map((model) => ({ ...model, id: model.id.trim() }));
+  const byId = new Map(merged.map((model) => [model.id, model]));
+  for (const model of incoming) {
+    const current = byId.get(model.id);
+    if (current) {
+      Object.assign(current, {
+        ownedBy: current.ownedBy || model.ownedBy,
+        source: current.source || model.source,
+      });
+    } else {
+      merged.push(model);
+      byId.set(model.id, model);
+    }
+  }
+  return merged;
+}
 
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -32,7 +82,10 @@ function App() {
   const [textFeatures, setTextFeatures] = useLocalStorage("xuannv_text_features", DEFAULT_TEXT_FEATURES);
   const [imageFeatures, setImageFeatures] = useLocalStorage("xuannv_image_features", DEFAULT_IMAGE_FEATURES);
 
-  const [chats, setChats] = useLocalStorage("xuannv_chats", []);
+  const [chats, setChats, chatsPersistence] = useLocalStorage("xuannv_chats", [], {
+    normalize: normalizeChats,
+    onQuotaExceeded: omitLocalMedia,
+  });
   const [activeChat, setActiveChat] = useLocalStorage("xuannv_active_chat", null);
 
   // Feature routing: "home" | "chat"
@@ -49,6 +102,12 @@ function App() {
   useEffect(() => { activeChatRef.current = activeChat; }, [activeChat]);
 
   const titleGenRef = useRef(new Set());
+
+  useEffect(() => {
+    if (activeChat != null && !chats.some((chat) => chat.id === activeChat)) {
+      setActiveChat(chats[0]?.id ?? null);
+    }
+  }, [activeChat, chats, setActiveChat]);
 
   const generateTitle = useCallback(async (chatId, userContent) => {
     const model = textModel || imageModel;
@@ -79,7 +138,7 @@ function App() {
   const handleNewChat = useCallback((chatMode) => {
     const targetMode = chatMode || mode;
     const newChat = {
-      id: Date.now(),
+      id: createChatId(),
       title: "新对话",
       mode: targetMode,
       messages: [],
@@ -93,21 +152,21 @@ function App() {
 
   const handleDeleteChat = useCallback(
     (chatId) => {
-      setChats((prev) => prev.filter((c) => c.id !== chatId));
+      setChats((prev) => {
+        const remaining = prev.filter((c) => c.id !== chatId);
+        if (activeChatRef.current === chatId) setActiveChat(remaining[0]?.id ?? null);
+        return remaining;
+      });
       titleGenRef.current.delete(chatId);
-      if (activeChat === chatId) {
-        const remaining = chats.filter((c) => c.id !== chatId);
-        setActiveChat(remaining.length > 0 ? remaining[0].id : null);
-      }
     },
-    [activeChat, chats, setChats, setActiveChat]
+    [setChats, setActiveChat]
   );
 
   const handleUpdateMessages = useCallback(
     (messages) => {
       const chatId = activeChatRef.current;
       if (!chatId) {
-        const newId = Date.now();
+        const newId = createChatId();
         const newChat = {
           id: newId,
           title: "生成标题中…",
@@ -154,6 +213,15 @@ function App() {
     [textModel, imageModel, setModels, setTextModel, setImageModel]
   );
 
+  const handleModelsFetched = useCallback((incomingModels) => {
+    setModels((prev) => mergeModels(prev, incomingModels));
+  }, [setModels]);
+
+  const handleConfigSave = useCallback((url, key) => {
+    setApiUrl(normalizeApiBaseUrl(url));
+    setApiKey(key.trim());
+  }, [setApiUrl, setApiKey]);
+
   const handleGoHome = useCallback(() => {
     setActiveFeature("home");
     setActiveChat(null);
@@ -165,6 +233,16 @@ function App() {
 
   return (
     <div className="flex h-screen text-white antialiased relative">
+      {chatsPersistence.status === "warning" && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[70] max-w-[90vw] rounded-lg border border-amber-500/30 bg-amber-950/95 px-4 py-2 text-xs text-amber-100 shadow-xl">
+          浏览器空间不足，文本历史已保存，本地图片或视频未保存。
+        </div>
+      )}
+      {chatsPersistence.status === "error" && (
+        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[70] max-w-[90vw] rounded-lg border border-red-500/30 bg-red-950/95 px-4 py-2 text-xs text-red-100 shadow-xl">
+          对话历史未能保存，刷新或关闭页面后可能丢失。请先导出备份或清理浏览器存储空间。
+        </div>
+      )}
       {/* Background gradient orbs */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <div className="absolute top-[-20%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] rounded-full"
@@ -206,7 +284,8 @@ function App() {
           onThemeToggle={themeToggle}
           apiUrl={apiUrl}
           apiKey={apiKey}
-          onConfigSave={(url, key) => { setApiUrl(url); setApiKey(key); }}
+          onConfigSave={handleConfigSave}
+          onModelsFetched={handleModelsFetched}
         />
       )}
 
