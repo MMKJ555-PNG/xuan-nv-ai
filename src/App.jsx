@@ -3,39 +3,12 @@ import Sidebar from "./components/Sidebar";
 import ChatArea from "./components/ChatArea";
 import HomePage from "./components/HomePage";
 import useLocalStorage from "./hooks/useLocalStorage";
+import useChatDirectory from "./hooks/useChatDirectory";
 import { chatCompletion, normalizeApiBaseUrl } from "./services/api";
 import { clearRemoteModels, reconcileActiveModels, selectRemoteModels } from "./services/models";
 
 const DEFAULT_TEXT_FEATURES = { structuredOutput: false, toolCalling: false, thinking: false };
 const DEFAULT_IMAGE_FEATURES = {};
-
-function normalizeChats(value) {
-  if (!Array.isArray(value)) return [];
-  return value.filter((chat) => chat && typeof chat === "object" && chat.id != null).map((chat) => ({
-    ...chat,
-    title: typeof chat.title === "string" && chat.title ? chat.title : "新对话",
-    mode: chat.mode === "image" ? "image" : "text",
-    messages: Array.isArray(chat.messages) ? chat.messages : [],
-    createdAt: Number.isFinite(chat.createdAt) ? chat.createdAt : (Number.isFinite(chat.id) ? chat.id : 0),
-  }));
-}
-
-function omitLocalMedia(chats) {
-  const sanitize = (value, state) => {
-    if (typeof value === "string") return value.startsWith("data:") ? (state.omitted = true, "") : value;
-    if (Array.isArray(value)) return value.map((item) => sanitize(item, state)).filter((item) => item !== "");
-    if (!value || typeof value !== "object") return value;
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, sanitize(item, state)]));
-  };
-  return chats.map((chat) => ({
-    ...chat,
-    messages: chat.messages.map((message) => {
-      const state = { omitted: false };
-      const next = sanitize(message, state);
-      return state.omitted ? { ...next, mediaPersistence: "omitted" } : next;
-    }),
-  }));
-}
 
 function createChatId() {
   return globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -65,11 +38,9 @@ function App() {
   const [textFeatures, setTextFeatures] = useLocalStorage("xuannv_text_features", DEFAULT_TEXT_FEATURES);
   const [imageFeatures, setImageFeatures] = useLocalStorage("xuannv_image_features", DEFAULT_IMAGE_FEATURES);
 
-  const [chats, setChats, chatsPersistence] = useLocalStorage("xuannv_chats", [], {
-    normalize: normalizeChats,
-    onQuotaExceeded: omitLocalMedia,
-  });
-  const [activeChat, setActiveChat] = useLocalStorage("xuannv_active_chat", null);
+  const chatDirectory = useChatDirectory();
+  const { chats, createChat, updateChat, deleteChat } = chatDirectory;
+  const [activeChat, setActiveChat] = useState(null);
 
   // Feature routing: "home" | "chat"
   const [activeFeature, setActiveFeature] = useLocalStorage("xuannv_active_feature", "home");
@@ -86,12 +57,6 @@ function App() {
 
   const titleGenRef = useRef(new Set());
 
-  useEffect(() => {
-    if (activeChat != null && !chats.some((chat) => chat.id === activeChat)) {
-      setActiveChat(chats[0]?.id ?? null);
-    }
-  }, [activeChat, chats, setActiveChat]);
-
   const generateTitle = useCallback(async (chatId, userContent) => {
     const model = textModel || imageModel;
     if (!apiUrl || !apiKey || !model) return;
@@ -107,43 +72,43 @@ function App() {
       });
       const title = data.choices?.[0]?.message?.content?.trim()?.slice(0, 10) || "";
       if (title) {
-        setChats((prev) => prev.map((c) => c.id === chatId ? { ...c, title } : c));
+        updateChat(chatId, (chat) => ({ ...chat, title }));
       }
     } catch {
       titleGenRef.current.delete(chatId);
       const fallback = userContent.replace(/\s/g, "").slice(0, 10);
-      setChats((prev) => prev.map((c) => c.id === chatId ? { ...c, title: fallback || "新对话" } : c));
+      updateChat(chatId, (chat) => ({ ...chat, title: fallback || "新对话" }));
     }
-  }, [apiUrl, apiKey, textModel, imageModel, setChats]);
+  }, [apiUrl, apiKey, textModel, imageModel, updateChat]);
 
-  const currentChat = chats.find((c) => c.id === activeChat) || null;
+  const resolvedActiveChat = chats.some((chat) => chat.id === activeChat) ? activeChat : (chats[0]?.id ?? null);
+  const currentChat = chats.find((chat) => chat.id === resolvedActiveChat) || null;
 
-  const handleNewChat = useCallback((chatMode) => {
+  const handleNewChat = useCallback(async (chatMode) => {
+    if (chatDirectory.status !== "ready") return;
     const targetMode = chatMode || mode;
-    const newChat = {
+    const newChat = await createChat({
       id: createChatId(),
       title: "新对话",
       mode: targetMode,
       messages: [],
       createdAt: Date.now(),
-    };
-    setChats((prev) => [newChat, ...prev]);
+      revision: 0,
+    });
     setActiveChat(newChat.id);
+    activeChatRef.current = newChat.id;
     setActiveFeature("chat");
     if (targetMode !== mode) setMode(targetMode);
-  }, [mode, setChats, setActiveChat, setActiveFeature, setMode]);
+  }, [chatDirectory.status, mode, createChat, setActiveFeature, setMode]);
 
-  const handleDeleteChat = useCallback(
-    (chatId) => {
-      setChats((prev) => {
-        const remaining = prev.filter((c) => c.id !== chatId);
-        if (activeChatRef.current === chatId) setActiveChat(remaining[0]?.id ?? null);
-        return remaining;
-      });
-      titleGenRef.current.delete(chatId);
-    },
-    [setChats, setActiveChat]
-  );
+  const handleDeleteChat = useCallback(async (chatId) => {
+    await deleteChat(chatId);
+    titleGenRef.current.delete(chatId);
+    if (activeChatRef.current === chatId) {
+      const remaining = chats.filter((chat) => chat.id !== chatId);
+      setActiveChat(remaining[0]?.id ?? null);
+    }
+  }, [chats, deleteChat]);
 
   const handleUpdateMessages = useCallback(
     (messages) => {
@@ -157,25 +122,23 @@ function App() {
           messages,
           createdAt: Date.now(),
         };
-        setChats((prev) => [newChat, ...prev]);
-        setActiveChat(newId);
-        activeChatRef.current = newId;
-        if (messages.length > 0 && messages[0].role === "user") {
-          generateTitle(newId, messages[0].content);
-        }
+        createChat(newChat).then(() => {
+          setActiveChat(newId);
+          activeChatRef.current = newId;
+          if (messages.length > 0 && messages[0].role === "user") {
+            generateTitle(newId, messages[0].content);
+          }
+        }).catch(() => {});
         return;
       }
-      setChats((prev) =>
-        prev.map((c) => {
-          if (c.id !== chatId) return c;
-          if (messages.length > 0 && messages[0].role === "user" && c.title === "新对话") {
-            generateTitle(chatId, messages[0].content);
-          }
-          return { ...c, messages };
-        })
-      );
+      updateChat(chatId, (chat) => {
+        if (messages.length > 0 && messages[0].role === "user" && chat.title === "新对话") {
+          generateTitle(chatId, messages[0].content);
+        }
+        return { ...chat, messages };
+      });
     },
-    [mode, setChats, setActiveChat, generateTitle]
+    [mode, createChat, updateChat, generateTitle]
   );
 
   const handleModelAdd = useCallback(
@@ -229,14 +192,9 @@ function App() {
 
   return (
     <div className="flex h-screen text-white antialiased relative">
-      {chatsPersistence.status === "warning" && (
-        <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[70] max-w-[90vw] rounded-lg border border-amber-500/30 bg-amber-950/95 px-4 py-2 text-xs text-amber-100 shadow-xl">
-          浏览器空间不足，文本历史已保存，本地图片或视频未保存。
-        </div>
-      )}
-      {chatsPersistence.status === "error" && (
+      {chatDirectory.error && (
         <div className="fixed top-3 left-1/2 -translate-x-1/2 z-[70] max-w-[90vw] rounded-lg border border-red-500/30 bg-red-950/95 px-4 py-2 text-xs text-red-100 shadow-xl">
-          对话历史未能保存，刷新或关闭页面后可能丢失。请先导出备份或清理浏览器存储空间。
+          {chatDirectory.error}
         </div>
       )}
       {/* Background gradient orbs */}
@@ -283,6 +241,7 @@ function App() {
           onConfigSave={handleConfigSave}
           onModelsFetched={handleModelsFetched}
           onRemoteModelsConfirmed={handleRemoteModelsConfirmed}
+          chatDirectory={chatDirectory}
         />
       )}
 
@@ -294,7 +253,7 @@ function App() {
             mode={mode}
             onModeChange={setMode}
             chats={chats}
-            activeChat={activeChat}
+            activeChat={resolvedActiveChat}
             onChatSelect={setActiveChat}
             onNewChat={handleNewChat}
             onDeleteChat={handleDeleteChat}

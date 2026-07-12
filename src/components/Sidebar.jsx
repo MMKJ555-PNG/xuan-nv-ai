@@ -3,6 +3,21 @@ import { Hexagon, PanelLeftClose, PanelLeftOpen, Plus, Clock, MessageSquare, Ima
 
 export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats, activeChat, onChatSelect, onNewChat, onDeleteChat, theme, onThemeToggle, onGoHome }) {
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+
+  const confirmDelete = async () => {
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await onDeleteChat(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (error) {
+      setDeleteError(error.message || "删除文件失败，请重试");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
     <>
@@ -82,14 +97,15 @@ export default function Sidebar({ collapsed, onToggle, mode, onModeChange, chats
               <Trash2 size={22} className="text-red-400" />
             </div>
             <h3 className="text-base font-semibold dark:text-zinc-200 text-zinc-800 mb-1">确认删除</h3>
-            <p className="text-sm dark:text-zinc-400 text-zinc-500 mb-4">确定要删除这个对话吗？此操作无法撤销。</p>
+            <p className="text-sm dark:text-zinc-400 text-zinc-500 mb-4">将永久删除文件夹中的对话和媒体文件，此操作无法撤销。</p>
             <div className="dark:bg-white/[0.04] bg-zinc-100 rounded-lg px-4 py-2.5 w-full">
               <p className="text-sm dark:text-zinc-300 text-zinc-700 truncate">{deleteTarget.title}</p>
             </div>
+            {deleteError && <p className="text-xs text-red-400 mt-3">{deleteError}</p>}
           </div>
           <div className="dark:bg-white/[0.02] bg-zinc-50 border-t border-[var(--border-subtle)] flex justify-end gap-2 px-5 py-3">
-            <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 rounded-lg text-sm dark:text-zinc-400 text-zinc-500 dark:hover:text-zinc-200 hover:text-zinc-700 dark:hover:bg-white/[0.04] hover:bg-zinc-100 transition-colors">取消</button>
-            <button onClick={() => { onDeleteChat(deleteTarget.id); setDeleteTarget(null); }} className="px-5 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors">确认删除</button>
+            <button disabled={deleting} onClick={() => setDeleteTarget(null)} className="px-4 py-2 rounded-lg text-sm dark:text-zinc-400 text-zinc-500 disabled:opacity-50">取消</button>
+            <button disabled={deleting} onClick={confirmDelete} className="px-5 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white transition-colors">{deleting ? "删除中..." : "确认删除"}</button>
           </div>
         </div>
       </>)}

@@ -6,11 +6,10 @@ const STORAGE_KEYS = [
   "xuannv_api_url", "xuannv_api_key", "xuannv_models",
   "xuannv_text_model", "xuannv_image_model",
   "xuannv_mode", "xuannv_text_features", "xuannv_image_features",
-  "xuannv_chats", "xuannv_active_chat", "xuannv_theme",
-  "xuannv_active_feature",
+  "xuannv_theme", "xuannv_active_feature",
 ];
 
-export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, apiKey, onConfigSave, onModelsFetched, onRemoteModelsConfirmed }) {
+export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, apiKey, onConfigSave, onModelsFetched, onRemoteModelsConfirmed, chatDirectory }) {
   const [hoveredCard, setHoveredCard] = useState(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [urlInput, setUrlInput] = useState(apiUrl);
@@ -24,6 +23,29 @@ export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, ap
   const fetchControllerRef = useRef(null);
   const fileInputRef = useRef(null);
   const [importMsg, setImportMsg] = useState("");
+  const [migrationDismissed, setMigrationDismissed] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const chatReady = chatDirectory.status === "ready";
+  const migrationOpen = chatReady && !migrationDismissed && Boolean(localStorage.getItem("xuannv_chats"));
+
+  const migrateLegacyChats = async () => {
+    setMigrating(true);
+    setImportMsg("");
+    try {
+      const legacy = JSON.parse(localStorage.getItem("xuannv_chats") || "[]");
+      const count = await chatDirectory.migrateLegacyChats(legacy);
+      if (window.confirm(`已迁移 ${count} 个对话。是否清理浏览器中的旧聊天副本？`)) {
+        localStorage.removeItem("xuannv_chats");
+        localStorage.removeItem("xuannv_active_chat");
+      }
+      setMigrationDismissed(true);
+      setImportMsg(`已迁移 ${count} 个旧对话`);
+    } catch (error) {
+      setImportMsg(`迁移失败：${error.message}`);
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   useEffect(() => () => fetchControllerRef.current?.abort(), []);
 
@@ -195,14 +217,35 @@ export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, ap
             </p>
           </div>
 
+          <div className="mb-4 px-1 sm:px-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 rounded-xl border border-[var(--border-subtle)] dark:bg-white/[0.03] bg-white/70 p-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium dark:text-zinc-300 text-zinc-700">
+                {chatReady ? `聊天目录：${chatDirectory.directoryName}` : chatDirectory.status === "unsupported" ? "当前浏览器不支持本地目录存储" : chatDirectory.status === "permission-required" ? "需要恢复聊天目录访问权限" : "请选择聊天保存文件夹"}
+              </p>
+              <p className="mt-1 text-[10px] dark:text-zinc-500 text-zinc-500">聊天和媒体仅保存到所选文件夹，不保存到浏览器。</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              {chatDirectory.status === "permission-required" && (
+                <button onClick={chatDirectory.restorePermission} className="px-3 py-2 rounded-lg text-xs bg-violet-600 hover:bg-violet-500 text-white transition-colors">恢复访问</button>
+              )}
+              {chatReady && (
+                <button onClick={chatDirectory.sync} className="px-3 py-2 rounded-lg text-xs dark:bg-white/[0.05] bg-zinc-100 dark:text-zinc-300 text-zinc-700 border border-[var(--border-subtle)]">同步</button>
+              )}
+              {chatDirectory.status !== "unsupported" && (
+                <button onClick={chatDirectory.chooseDirectory} className="px-3 py-2 rounded-lg text-xs dark:bg-white/[0.05] bg-zinc-100 dark:text-zinc-300 text-zinc-700 border border-[var(--border-subtle)]">{chatReady ? "重新选择" : "选择文件夹"}</button>
+              )}
+            </div>
+          </div>
+
           {/* Feature Cards — 3 cards in responsive grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4 sm:gap-5 px-1 sm:px-0">
             {/* Card 1 — 智能对话 */}
             <button
               onClick={onStartChat}
+              disabled={!chatReady}
               onMouseEnter={() => setHoveredCard("chat")}
               onMouseLeave={() => setHoveredCard(null)}
-              className={`${cardBase} ${hoveredCard === "chat" ? cardHoverActive + " -translate-y-1" : ""}`}
+              className={`${cardBase} ${chatReady && hoveredCard === "chat" ? cardHoverActive + " -translate-y-1" : ""} ${!chatReady ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <div
                 className="absolute inset-0 rounded-2xl bg-violet-500/5 blur-xl transition-opacity duration-300 pointer-events-none"
@@ -314,6 +357,22 @@ export default function HomePage({ onStartChat, theme, onThemeToggle, apiUrl, ap
           <div className="px-5 py-3 dark:bg-white/[0.02] bg-zinc-50 border-t border-[var(--border-subtle)] flex justify-end gap-2">
             <button onClick={closeConfig} className="px-4 py-2 rounded-lg text-sm dark:text-zinc-400 text-zinc-500 dark:hover:text-zinc-200 hover:text-zinc-700 dark:hover:bg-white/[0.04] hover:bg-zinc-100 transition-colors">取消</button>
             <button onClick={handleConfigSave} className="px-5 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-colors">保存</button>
+          </div>
+        </div>
+      </>)}
+
+      {migrationOpen && (<>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[60]" onClick={() => !migrating && setMigrationDismissed(true)} />
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] w-[440px] max-w-[92vw] dark:bg-zinc-900 bg-white rounded-2xl border border-[var(--border-default)] shadow-2xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-[var(--border-subtle)]">
+            <h2 className="text-sm font-semibold dark:text-zinc-200 text-zinc-800">迁移旧聊天记录</h2>
+          </div>
+          <div className="p-5 text-sm dark:text-zinc-400 text-zinc-600 leading-relaxed">
+            检测到浏览器中保存的旧聊天。可以将它们和其中的图片、视频迁移到当前聊天文件夹。迁移全部成功前不会删除旧数据。
+          </div>
+          <div className="px-5 py-3 border-t border-[var(--border-subtle)] flex justify-end gap-2">
+            <button disabled={migrating} onClick={() => setMigrationDismissed(true)} className="px-4 py-2 text-sm dark:text-zinc-400 text-zinc-500">暂不迁移</button>
+            <button disabled={migrating} onClick={migrateLegacyChats} className="px-5 py-2 rounded-lg text-sm bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white">{migrating ? "迁移中..." : "开始迁移"}</button>
           </div>
         </div>
       </>)}
